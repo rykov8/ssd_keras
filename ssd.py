@@ -241,15 +241,7 @@ def SSD(input_shape):
                                   net['pool6_mbox_priorbox']],
                                  mode='concat', concat_axis=2,
                                  name='mbox_priorbox')
-    # TODO DetectionOutput
-    # due to keras bug I have to compute the shape
-    # reshape = Reshape((-1, 21), name='mbox_conf_reshape')
-    # net['mbox_conf_reshape'] = reshape(net['mbox_conf'])
-    # softmax = Activation('softmax', name='mbox_conf_softmax')
-    # net['mbox_conf_softmax'] = softmax(net['mbox_conf_reshape'])
-    # flatten = Flatten(name='mbox_conf_flatten')
-    # net['mbox_conf_flatten'] = flatten(net['mbox_conf_softmax'])
 
-    model = Model(net['input'], [net['mbox_priorbox'],
-                                 net['mbox_loc'], net['mbox_conf']])
+    model = Model(net['input'],
+                  [net['mbox_loc'], net['mbox_conf'], net['mbox_priorbox']])
     return model
