@@ -204,13 +204,14 @@ def SSD(input_shape):
                         name='conv8_2_mbox_priorbox')
     net['conv8_2_mbox_priorbox'] = priorbox(net['conv8_2'])
     # Prediction from pool6
-    x = Convolution2D(24, 3, 3, border_mode='same',
-                      name='pool6_mbox_loc')(net['pool6'])
+    net['pool6_pad'] = ZeroPadding2D()(net['pool6'])
+    x = Convolution2D(24, 3, 3, border_mode='valid',
+                      name='pool6_mbox_loc')(net['pool6_pad'])
     net['pool6_mbox_loc'] = x
     flatten = Flatten(name='pool6_mbox_loc_flat')
     net['pool6_mbox_loc_flat'] = flatten(net['pool6_mbox_loc'])
-    x = Convolution2D(126, 3, 3, border_mode='same',
-                      name='pool6_mbox_conf')(net['pool6'])
+    x = Convolution2D(126, 3, 3, border_mode='valid',
+                      name='pool6_mbox_conf')(net['pool6_pad'])
     net['pool6_mbox_conf'] = x
     flatten = Flatten(name='pool6_mbox_conf_flat')
     net['pool6_mbox_conf_flat'] = flatten(net['pool6_mbox_conf'])
