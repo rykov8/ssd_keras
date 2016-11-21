@@ -4,6 +4,7 @@ import keras.backend as K
 from keras.engine.topology import InputSpec
 from keras.engine.topology import Layer
 import numpy as np
+import tensorflow as tf
 
 
 class Normalize(Layer):
@@ -69,13 +70,14 @@ class PriorBox(Layer):
 
     # Output shape
         3D tensor with shape:
-        (samples, 2, num_boxes)
+        (samples, num_boxes, 8)
 
     # References
         https://arxiv.org/abs/1512.02325
 
     #TODO
         Add possibility not to have variances.
+        Add Theano support
     """
     def __init__(self, img_size, min_size, max_size=None, aspect_ratios=None,
                  flip=True, variances=[0.1], clip=True, **kwargs):
@@ -110,8 +112,8 @@ class PriorBox(Layer):
         num_priors_ = len(self.aspect_ratios)
         layer_width = input_shape[self.waxis]
         layer_height = input_shape[self.haxis]
-        num_boxes = num_priors_ * layer_width * layer_height * 4
-        return (input_shape[0], 2, num_boxes)
+        num_boxes = num_priors_ * layer_width * layer_height
+        return (input_shape[0], num_boxes, 8)
 
     def call(self, x, mask=None):
         if hasattr(x, '_keras_shape'):
@@ -157,18 +159,23 @@ class PriorBox(Layer):
         prior_boxes[:, 3::4] += box_heights
         prior_boxes[:, ::2] /= img_width
         prior_boxes[:, 1::2] /= img_height
-        prior_boxes = prior_boxes.reshape(-1, 1)
+        prior_boxes = prior_boxes.reshape(-1, 4)
         if self.clip:
             prior_boxes = np.minimum(np.maximum(prior_boxes, 0.0), 1.0)
         # define variances
         num_boxes = len(prior_boxes)
         if len(self.variances) == 1:
-            variances = np.ones((num_boxes, 1)) * self.variances[0]
+            variances = np.ones((num_boxes, 4)) * self.variances[0]
         elif len(self.variances) == 4:
-            variances = np.tile(self.variances, num_boxes // 4).reshape(-1, 1)
+            variances = np.tile(self.variances, (num_boxes, 1))
         else:
             raise Exception('Must provide one or four variances.')
         prior_boxes = np.concatenate((prior_boxes, variances), axis=1)
-        prior_boxes = prior_boxes.transpose(1, 0)
         prior_boxes_tensor = K.expand_dims(K.variable(prior_boxes), 0)
+        if K.backend() == 'tensorflow':
+            pattern = [tf.shape(x)[0], 1, 1]
+            prior_boxes_tensor = tf.tile(prior_boxes_tensor, pattern)
+        elif K.backend() == 'theano':
+            #TODO
+            pass
         return prior_boxes_tensor

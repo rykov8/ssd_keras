@@ -18,7 +18,7 @@ from ssd_layers import Normalize
 from ssd_layers import PriorBox
 
 
-def SSD(input_shape):
+def SSD(input_shape, num_classes=21):
     # TODO Add valid paddings everywhere in order to be sure
     net = {}
     # Block 1
@@ -131,13 +131,17 @@ def SSD(input_shape):
     net['pool6'] = Reshape(target_shape, name='pool6_reshaped')(net['pool6'])
     # Prediction from conv4_3
     net['conv4_3_norm'] = Normalize(20, name='conv4_3_norm')(net['conv4_3'])
-    x = Convolution2D(12, 3, 3, border_mode='same',
+    num_priors = 3
+    x = Convolution2D(num_priors * 4, 3, 3, border_mode='same',
                       name='conv4_3_norm_mbox_loc')(net['conv4_3_norm'])
     net['conv4_3_norm_mbox_loc'] = x
     flatten = Flatten(name='conv4_3_norm_mbox_loc_flat')
     net['conv4_3_norm_mbox_loc_flat'] = flatten(net['conv4_3_norm_mbox_loc'])
-    x = Convolution2D(63, 3, 3, border_mode='same',
-                      name='conv4_3_norm_mbox_conf')(net['conv4_3_norm'])
+    name = 'conv4_3_norm_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='same',
+                      name=name)(net['conv4_3_norm'])
     net['conv4_3_norm_mbox_conf'] = x
     flatten = Flatten(name='conv4_3_norm_mbox_conf_flat')
     net['conv4_3_norm_mbox_conf_flat'] = flatten(net['conv4_3_norm_mbox_conf'])
@@ -146,12 +150,18 @@ def SSD(input_shape):
                         name='conv4_3_norm_mbox_priorbox')
     net['conv4_3_norm_mbox_priorbox'] = priorbox(net['conv4_3_norm'])
     # Prediction from fc7
-    net['fc7_mbox_loc'] = Convolution2D(24, 3, 3, border_mode='same',
+    num_priors = 6
+    net['fc7_mbox_loc'] = Convolution2D(num_priors * 4, 3, 3,
+                                        border_mode='same',
                                         name='fc7_mbox_loc')(net['fc7'])
     flatten = Flatten(name='fc7_mbox_loc_flat')
     net['fc7_mbox_loc_flat'] = flatten(net['fc7_mbox_loc'])
-    net['fc7_mbox_conf'] = Convolution2D(126, 3, 3, border_mode='same',
-                                         name='fc7_mbox_conf')(net['fc7'])
+    name = 'fc7_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    net['fc7_mbox_conf'] = Convolution2D(num_priors * num_classes, 3, 3,
+                                         border_mode='same',
+                                         name=name)(net['fc7'])
     flatten = Flatten(name='fc7_mbox_conf_flat')
     net['fc7_mbox_conf_flat'] = flatten(net['fc7_mbox_conf'])
     priorbox = PriorBox(img_size, 60.0, max_size=114.0, aspect_ratios=[2, 3],
@@ -159,13 +169,17 @@ def SSD(input_shape):
                         name='fc7_mbox_priorbox')
     net['fc7_mbox_priorbox'] = priorbox(net['fc7'])
     # Prediction from conv6_2
-    x = Convolution2D(24, 3, 3, border_mode='same',
+    num_priors = 6
+    x = Convolution2D(num_priors * 4, 3, 3, border_mode='same',
                       name='conv6_2_mbox_loc')(net['conv6_2'])
     net['conv6_2_mbox_loc'] = x
     flatten = Flatten(name='conv6_2_mbox_loc_flat')
     net['conv6_2_mbox_loc_flat'] = flatten(net['conv6_2_mbox_loc'])
-    x = Convolution2D(126, 3, 3, border_mode='same',
-                      name='conv6_2_mbox_conf')(net['conv6_2'])
+    name = 'conv6_2_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='same',
+                      name=name)(net['conv6_2'])
     net['conv6_2_mbox_conf'] = x
     flatten = Flatten(name='conv6_2_mbox_conf_flat')
     net['conv6_2_mbox_conf_flat'] = flatten(net['conv6_2_mbox_conf'])
@@ -174,13 +188,17 @@ def SSD(input_shape):
                         name='conv6_2_mbox_priorbox')
     net['conv6_2_mbox_priorbox'] = priorbox(net['conv6_2'])
     # Prediction from conv7_2
-    x = Convolution2D(24, 3, 3, border_mode='same',
+    num_priors = 6
+    x = Convolution2D(num_priors * 4, 3, 3, border_mode='same',
                       name='conv7_2_mbox_loc')(net['conv7_2'])
     net['conv7_2_mbox_loc'] = x
     flatten = Flatten(name='conv7_2_mbox_loc_flat')
     net['conv7_2_mbox_loc_flat'] = flatten(net['conv7_2_mbox_loc'])
-    x = Convolution2D(126, 3, 3, border_mode='same',
-                      name='conv7_2_mbox_conf')(net['conv7_2'])
+    name = 'conv7_2_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='same',
+                      name=name)(net['conv7_2'])
     net['conv7_2_mbox_conf'] = x
     flatten = Flatten(name='conv7_2_mbox_conf_flat')
     net['conv7_2_mbox_conf_flat'] = flatten(net['conv7_2_mbox_conf'])
@@ -189,13 +207,17 @@ def SSD(input_shape):
                         name='conv7_2_mbox_priorbox')
     net['conv7_2_mbox_priorbox'] = priorbox(net['conv7_2'])
     # Prediction from conv8_2
-    x = Convolution2D(24, 3, 3, border_mode='same',
+    num_priors = 6
+    x = Convolution2D(num_priors * 4, 3, 3, border_mode='same',
                       name='conv8_2_mbox_loc')(net['conv8_2'])
     net['conv8_2_mbox_loc'] = x
     flatten = Flatten(name='conv8_2_mbox_loc_flat')
     net['conv8_2_mbox_loc_flat'] = flatten(net['conv8_2_mbox_loc'])
-    x = Convolution2D(126, 3, 3, border_mode='same',
-                      name='conv8_2_mbox_conf')(net['conv8_2'])
+    name = 'conv8_2_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='same',
+                      name=name)(net['conv8_2'])
     net['conv8_2_mbox_conf'] = x
     flatten = Flatten(name='conv8_2_mbox_conf_flat')
     net['conv8_2_mbox_conf_flat'] = flatten(net['conv8_2_mbox_conf'])
@@ -204,13 +226,18 @@ def SSD(input_shape):
                         name='conv8_2_mbox_priorbox')
     net['conv8_2_mbox_priorbox'] = priorbox(net['conv8_2'])
     # Prediction from pool6
-    x = Convolution2D(24, 3, 3, border_mode='same',
-                      name='pool6_mbox_loc')(net['pool6'])
+    num_priors = 6
+    net['pool6_pad'] = ZeroPadding2D()(net['pool6'])
+    x = Convolution2D(num_priors * 4, 3, 3, border_mode='valid',
+                      name='pool6_mbox_loc')(net['pool6_pad'])
     net['pool6_mbox_loc'] = x
     flatten = Flatten(name='pool6_mbox_loc_flat')
     net['pool6_mbox_loc_flat'] = flatten(net['pool6_mbox_loc'])
-    x = Convolution2D(126, 3, 3, border_mode='same',
-                      name='pool6_mbox_conf')(net['pool6'])
+    name = 'pool6_mbox_conf'
+    if num_classes != 21:
+        name += '_{}'.format(num_classes)
+    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='valid',
+                      name=name)(net['pool6_pad'])
     net['pool6_mbox_conf'] = x
     flatten = Flatten(name='pool6_mbox_conf_flat')
     net['pool6_mbox_conf_flat'] = flatten(net['pool6_mbox_conf'])
@@ -239,9 +266,22 @@ def SSD(input_shape):
                                   net['conv7_2_mbox_priorbox'],
                                   net['conv8_2_mbox_priorbox'],
                                   net['pool6_mbox_priorbox']],
-                                 mode='concat', concat_axis=2,
+                                 mode='concat', concat_axis=1,
                                  name='mbox_priorbox')
-
-    model = Model(net['input'],
-                  [net['mbox_loc'], net['mbox_conf'], net['mbox_priorbox']])
+    if hasattr(net['mbox_loc'], '_keras_shape'):
+        num_boxes = net['mbox_loc']._keras_shape[-1] // 4
+    elif hasattr(net['mbox_loc'], 'int_shape'):
+        num_boxes = K.int_shape(net['mbox_loc'])[-1] // 4
+    net['mbox_loc'] = Reshape((num_boxes, 4),
+                              name='mbox_loc_final')(net['mbox_loc'])
+    net['mbox_conf'] = Reshape((num_boxes, num_classes),
+                               name='mbox_conf_logits')(net['mbox_conf'])
+    net['mbox_conf'] = Activation('softmax',
+                                  name='mbox_conf_final')(net['mbox_conf'])
+    net['predictions'] = merge([net['mbox_loc'],
+                               net['mbox_conf'],
+                               net['mbox_priorbox']],
+                               mode='concat', concat_axis=2,
+                               name='predictions')
+    model = Model(net['input'], net['predictions'])
     return model
