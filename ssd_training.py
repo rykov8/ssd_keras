@@ -113,7 +113,8 @@ class MultiboxLoss(object):
         confs_end = confs_start + self.num_classes - 1
         max_confs = tf.reduce_max(y_pred[:, :, confs_start:confs_end],
                                   reduction_indices=2)
-        _, indices = tf.nn.top_k(max_confs, k=num_neg_batch)
+        _, indices = tf.nn.top_k(max_confs * (1 - y_true[:, :, -8]),
+                                 k=num_neg_batch)
         batch_idx = tf.expand_dims(tf.range(0, batch_size), 1)
         batch_idx = tf.tile(batch_idx, (1, num_neg_batch))
         full_indices = (tf.reshape(batch_idx, [-1]) * tf.to_int32(num_boxes) +
