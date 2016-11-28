@@ -60,9 +60,11 @@ class BBoxUtility(object):
         """
         iou = self.iou(box)
         encoded_box = np.zeros((self.num_priors, 4 + return_iou))
-        if return_iou:
-            encoded_box[:, -1] = iou
         assign_mask = iou > self.overlap_threshold
+        if not assign_mask.any():
+            assign_mask[iou.argmax()] = True
+        if return_iou:
+            encoded_box[:, -1][assign_mask] = iou[assign_mask]
         assigned_priors = self.priors[assign_mask]
         box_center = 0.5 * (box[:2] + box[2:])
         box_wh = box[2:] - box[:2]
@@ -102,7 +104,7 @@ class BBoxUtility(object):
         encoded_boxes = encoded_boxes.reshape(-1, self.num_priors, 5)
         best_iou = encoded_boxes[:, :, -1].max(axis=0)
         best_iou_idx = encoded_boxes[:, :, -1].argmax(axis=0)
-        best_iou_mask = best_iou > self.overlap_threshold
+        best_iou_mask = best_iou > 0
         best_iou_idx = best_iou_idx[best_iou_mask]
         assign_num = len(best_iou_idx)
         encoded_boxes = encoded_boxes[:, best_iou_mask, :]

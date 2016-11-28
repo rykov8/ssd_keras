@@ -4,7 +4,7 @@ import keras.backend as K
 from keras.layers import Activation
 from keras.layers import AtrousConvolution2D
 from keras.layers import Convolution2D
-# from keras.layers import Dropout
+from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import GlobalAveragePooling2D
 from keras.layers import Input
@@ -18,8 +18,17 @@ from ssd_layers import Normalize
 from ssd_layers import PriorBox
 
 
-def SSD(input_shape, num_classes=21):
-    # TODO Add valid paddings everywhere in order to be sure
+def SSD300(input_shape, num_classes=21):
+    """SSD300 architecture.
+
+    # Arguments
+        input_shape: Shape of the input image,
+            expected to be either (300, 300, 3) or (3, 300, 300)(not tested).
+        num_classes: Number of classes including background.
+
+    # References
+        https://arxiv.org/abs/1512.02325
+    """
     net = {}
     # Block 1
     input_tensor = input_tensor = Input(shape=input_shape)
@@ -124,11 +133,6 @@ def SSD(input_shape, num_classes=21):
                                    name='conv8_2')(net['conv8_1'])
     # Last Pool
     net['pool6'] = GlobalAveragePooling2D(name='pool6')(net['conv8_2'])
-    if K.image_dim_ordering() == 'tf':
-        target_shape = (1, 1, 256)
-    else:
-        target_shape = (256, 1, 1)
-    net['pool6'] = Reshape(target_shape, name='pool6_reshaped')(net['pool6'])
     # Prediction from conv4_3
     net['conv4_3_norm'] = Normalize(20, name='conv4_3_norm')(net['conv4_3'])
     num_priors = 3
@@ -227,24 +231,23 @@ def SSD(input_shape, num_classes=21):
     net['conv8_2_mbox_priorbox'] = priorbox(net['conv8_2'])
     # Prediction from pool6
     num_priors = 6
-    net['pool6_pad'] = ZeroPadding2D()(net['pool6'])
-    x = Convolution2D(num_priors * 4, 3, 3, border_mode='valid',
-                      name='pool6_mbox_loc')(net['pool6_pad'])
-    net['pool6_mbox_loc'] = x
-    flatten = Flatten(name='pool6_mbox_loc_flat')
-    net['pool6_mbox_loc_flat'] = flatten(net['pool6_mbox_loc'])
-    name = 'pool6_mbox_conf'
+    x = Dense(num_priors * 4, name='pool6_mbox_loc_flat')(net['pool6'])
+    net['pool6_mbox_loc_flat'] = x
+    name = 'pool6_mbox_conf_flat'
     if num_classes != 21:
         name += '_{}'.format(num_classes)
-    x = Convolution2D(num_priors * num_classes, 3, 3, border_mode='valid',
-                      name=name)(net['pool6_pad'])
-    net['pool6_mbox_conf'] = x
-    flatten = Flatten(name='pool6_mbox_conf_flat')
-    net['pool6_mbox_conf_flat'] = flatten(net['pool6_mbox_conf'])
+    x = Dense(num_priors * num_classes, name=name)(net['pool6'])
+    net['pool6_mbox_conf_flat'] = x
     priorbox = PriorBox(img_size, 276.0, max_size=330.0, aspect_ratios=[2, 3],
                         variances=[0.1, 0.1, 0.2, 0.2],
                         name='pool6_mbox_priorbox')
-    net['pool6_mbox_priorbox'] = priorbox(net['pool6'])
+    if K.image_dim_ordering() == 'tf':
+        target_shape = (1, 1, 256)
+    else:
+        target_shape = (256, 1, 1)
+    net['pool6_reshaped'] = Reshape(target_shape,
+                                    name='pool6_reshaped')(net['pool6'])
+    net['pool6_mbox_priorbox'] = priorbox(net['pool6_reshaped'])
     # Gather all predictions
     net['mbox_loc'] = merge([net['conv4_3_norm_mbox_loc_flat'],
                              net['fc7_mbox_loc_flat'],
