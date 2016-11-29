@@ -30,15 +30,18 @@ class VideoTest(object):
                          compiled before used as input here.
                          
             input_shape: The shape that the model expects for its input, 
-                         as a tuple (i.e. (300, 300))                          
+                         as a tuple (i.e. (300, 300))    
+                         
+            bbox_util:   An instance of the BBoxUtility class in ssd_utils                      
     
     """
     
-    def __init__(self, class_names, model, input_shape):
+    def __init__(self, class_names, model, input_shape, bbox_util):
         self.class_names = class_names
         self.num_classes = len(class_names)
         self.model = model
         self.input_shape = input_shape
+        self.bbox_util = bbox_util
         
         # Create unique and somewhat visually distinguishable colors for classes    
         self.class_colors = []
@@ -72,7 +75,7 @@ class VideoTest(object):
         vid = cv2.VideoCapture(video_path)
         if not vid.isOpened():
             raise IOError(("Couldn't open video file or webcam. If you're "
-            "trying to open a webcam, make sure you video_path is an integer!")
+            "trying to open a webcam, make sure you video_path is an integer!"))
         
         # Compute aspect ratio of video     
         vidw = vid.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
@@ -89,7 +92,8 @@ class VideoTest(object):
                 print("Done!")
                 return
                 
-            resized = cv2.resize(orig_image, self.input_shape)
+            im_size = (self.input_shape[0], self.input_shape[1])    
+            resized = cv2.resize(orig_image, im_size)
             rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
             
             # Reshape to original aspect ratio for later visualization
@@ -101,9 +105,9 @@ class VideoTest(object):
             inputs = [image.img_to_array(rgb)]
             tmp_inp = np.array(inputs)
             x = preprocess_input(tmp_inp)
-            y = model.predict(x)
+            y = self.model.predict(x)
             
-            results = bbox_util.detection_out(y)
+            results = self.bbox_util.detection_out(y)
             
             # Interpret output, only one frame is used 
             i=0
@@ -132,14 +136,14 @@ class VideoTest(object):
                 # Draw the box on top of the to_draw image
                 class_num = int(top_label_indices[i])
                 cv2.rectangle(to_draw, (xmin, ymin), (xmax, ymax), 
-                              self.class_colors[class_num], 3)
+                              self.class_colors[class_num], 2)
                 text = self.class_names[class_num] + " " + ('%.2f' % top_conf[i])
                 
-                text_top = (xmin, ymin-2)
-                text_bot = (xmin + 110, ymin + 20)
-                text_pos = (xmin + 5, ymin + 15)
+                text_top = (xmin, ymin-10)
+                text_bot = (xmin + 80, ymin + 5)
+                text_pos = (xmin + 5, ymin)
                 cv2.rectangle(to_draw, text_top, text_bot, self.class_colors[class_num], -1)
-                cv2.putText(to_draw, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
+                cv2.putText(to_draw, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
             cv2.imshow("SSD result", to_draw)
             cv2.waitKey(10)
