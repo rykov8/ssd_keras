@@ -1,4 +1,4 @@
-"""SSD testing utils."""
+""" A class for testing a SSD model on a video file or webcam """
 
 import cv2
 import keras
@@ -12,9 +12,10 @@ from random import shuffle
 from scipy.misc import imread, imresize
 from timeit import default_timer as timer
 
-from ssd import SSD300 as SSD
-from ssd_training import MultiboxLoss
+import sys
+sys.path.append("..")
 from ssd_utils import BBoxUtility
+
 
 class VideoTest(object):
     """ Class for testing a trained SSD model on a video file and show the
@@ -40,12 +41,12 @@ class VideoTest(object):
     
     """
     
-    def __init__(self, class_names, model, input_shape, bbox_util):
+    def __init__(self, class_names, model, input_shape):
         self.class_names = class_names
         self.num_classes = len(class_names)
         self.model = model
         self.input_shape = input_shape
-        self.bbox_util = bbox_util
+        self.bbox_util = BBoxUtility(self.num_classes)
         
         # Create unique and somewhat visually distinguishable bright
         # colors for the different classes.
