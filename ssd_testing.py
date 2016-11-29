@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 from random import shuffle
 from scipy.misc import imread, imresize
+from timeit import default_timer as timer
 
 from ssd import SSD300 as SSD
 from ssd_training import MultiboxLoss
@@ -19,20 +20,23 @@ class VideoTest(object):
     """ Class for testing a trained SSD model on a video file and show the
         result in a window. Class is designed so that one VideoTest object 
         can be created for a model, and the same object can then be used on 
-        multiple videos and webcams
+        multiple videos and webcams.
         
         Arguments:
             class_names: A list of strings, each containing the name of a class.
                          The first name should be that of the background class
                          which is not used.
                          
-            model:       An SSD model. It is expected to be already trained and 
-                         compiled before used as input here.
+            model:       An SSD model. It should already be trained for 
+                         images similar to the video to test on.
                          
             input_shape: The shape that the model expects for its input, 
-                         as a tuple (i.e. (300, 300))    
+                         as a tuple, for example (300, 300, 3)    
                          
-            bbox_util:   An instance of the BBoxUtility class in ssd_utils                      
+            bbox_util:   An instance of the BBoxUtility class in ssd_utils.py
+                         The BBoxUtility needs to be instantiated with 
+                         the same number of classes as the length of        
+                         class_names.
     
     """
     
@@ -43,15 +47,16 @@ class VideoTest(object):
         self.input_shape = input_shape
         self.bbox_util = bbox_util
         
-        # Create unique and somewhat visually distinguishable colors for classes    
+        # Create unique and somewhat visually distinguishable bright
+        # colors for the different classes.
         self.class_colors = []
         for i in range(0, self.num_classes):
             # This can probably be written in a more elegant manner
-            lin = 255*i/self.num_classes
+            hue = 255*i/self.num_classes
             col = np.zeros((1,1,3)).astype("uint8")
-            col[0][0][0] = lin
-            col[0][0][1] = 128
-            col[0][0][2] = 255
+            col[0][0][0] = hue
+            col[0][0][1] = 128 # Saturation
+            col[0][0][2] = 255 # Value
             cvcol = cv2.cvtColor(col, cv2.COLOR_HSV2BGR)
             col = (int(cvcol[0][0][0]), int(cvcol[0][0][1]), int(cvcol[0][0][2]))
             self.class_colors.append(col) 
@@ -86,6 +91,11 @@ class VideoTest(object):
         if start_frame > 0:
             vid.set(cv2.cv.CV_CAP_PROP_POS_MSEC, start_frame)
             
+        accum_time = 0
+        curr_fps = 0
+        fps = "FPS: ??"
+        prev_time = timer()
+            
         while True:
             retval, orig_image = vid.read()
             if not retval:
@@ -105,18 +115,21 @@ class VideoTest(object):
             inputs = [image.img_to_array(rgb)]
             tmp_inp = np.array(inputs)
             x = preprocess_input(tmp_inp)
+            
             y = self.model.predict(x)
             
+            
+            # This line creates a new TensorFlow device every time. Is there a 
+            # way to avoid that?
             results = self.bbox_util.detection_out(y)
             
             # Interpret output, only one frame is used 
-            i=0
-            det_label = results[i][:, 0]
-            det_conf = results[i][:, 1]
-            det_xmin = results[i][:, 2]
-            det_ymin = results[i][:, 3]
-            det_xmax = results[i][:, 4]
-            det_ymax = results[i][:, 5]
+            det_label = results[0][:, 0]
+            det_conf = results[0][:, 1]
+            det_xmin = results[0][:, 2]
+            det_ymin = results[0][:, 3]
+            det_xmax = results[0][:, 4]
+            det_ymax = results[0][:, 5]
             
             top_indices = [i for i, conf in enumerate(det_conf) if conf >= conf_thresh]
             
@@ -144,6 +157,23 @@ class VideoTest(object):
                 text_pos = (xmin + 5, ymin)
                 cv2.rectangle(to_draw, text_top, text_bot, self.class_colors[class_num], -1)
                 cv2.putText(to_draw, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
+            
+            # Calculate FPS
+            # This computes FPS for everything, not just the model's execution 
+            # which may or may not be what you want
+            curr_time = timer()
+            exec_time = curr_time - prev_time
+            prev_time = curr_time
+            accum_time = accum_time + exec_time
+            curr_fps = curr_fps + 1
+            if accum_time > 1:
+                accum_time = accum_time - 1
+                fps = "FPS: " + str(curr_fps)
+                curr_fps = 0
+            
+            # Draw FPS in top left corner
+            cv2.rectangle(to_draw, (0,0), (50, 17), (255,255,255), -1)
+            cv2.putText(to_draw, fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
             cv2.imshow("SSD result", to_draw)
             cv2.waitKey(10)
