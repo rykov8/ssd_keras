@@ -14,6 +14,8 @@ from keras.layers import Reshape
 from keras.layers import ZeroPadding2D
 from keras.models import Model
 
+from keras.application.vgg16 import VGG16
+
 from ssd_layers import Normalize
 from ssd_layers import PriorBox
 
@@ -21,9 +23,11 @@ from ssd_layers import PriorBox
 def SSD(input_shape, num_classes=21):
     # TODO Add valid paddings everywhere in order to be sure
     net = {}
-    # Block 1
     input_tensor = input_tensor = Input(shape=input_shape)
+    vgg16 = VGG16(include_top=False, weights='imagenet', input_tensor=input_tensor, input_shape=input_shape)
+    # Block 1
     img_size = (input_shape[1], input_shape[0])
+    """
     net['input'] = input_tensor
     net['conv1_1'] = Convolution2D(64, 3, 3,
                                    activation='relu',
@@ -91,6 +95,9 @@ def SSD(input_shape, num_classes=21):
                                    name='conv5_3')(net['conv5_2'])
     net['pool5'] = MaxPooling2D((3, 3), strides=(1, 1), border_mode='same',
                                 name='pool5')(net['conv5_3'])
+    """
+    net['conv4_3'] = vgg16.get_layer("block4_conv3")
+    net['pool5'] = vgg16.get_layer("block5_pool")
     # FC6
     net['fc6'] = AtrousConvolution2D(1024, 3, 3, atrous_rate=(6, 6),
                                      activation='relu', border_mode='same',
