@@ -124,40 +124,41 @@ class VideoTest(object):
             # way to avoid that?
             results = self.bbox_util.detection_out(y)
             
-            # Interpret output, only one frame is used 
-            det_label = results[0][:, 0]
-            det_conf = results[0][:, 1]
-            det_xmin = results[0][:, 2]
-            det_ymin = results[0][:, 3]
-            det_xmax = results[0][:, 4]
-            det_ymax = results[0][:, 5]
-            
-            top_indices = [i for i, conf in enumerate(det_conf) if conf >= conf_thresh]
-            
-            top_conf = det_conf[top_indices]
-            top_label_indices = det_label[top_indices].tolist()
-            top_xmin = det_xmin[top_indices]
-            top_ymin = det_ymin[top_indices]
-            top_xmax = det_xmax[top_indices]
-            top_ymax = det_ymax[top_indices]
-            
-            for i in range(top_conf.shape[0]):
-                xmin = int(round(top_xmin[i] * to_draw.shape[1]))
-                ymin = int(round(top_ymin[i] * to_draw.shape[0]))
-                xmax = int(round(top_xmax[i] * to_draw.shape[1]))
-                ymax = int(round(top_ymax[i] * to_draw.shape[0]))
-                
-                # Draw the box on top of the to_draw image
-                class_num = int(top_label_indices[i])
-                cv2.rectangle(to_draw, (xmin, ymin), (xmax, ymax), 
-                              self.class_colors[class_num], 2)
-                text = self.class_names[class_num] + " " + ('%.2f' % top_conf[i])
-                
-                text_top = (xmin, ymin-10)
-                text_bot = (xmin + 80, ymin + 5)
-                text_pos = (xmin + 5, ymin)
-                cv2.rectangle(to_draw, text_top, text_bot, self.class_colors[class_num], -1)
-                cv2.putText(to_draw, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
+            if len(results) > 0 and len(results[0]) > 0:
+                # Interpret output, only one frame is used 
+                det_label = results[0][:, 0]
+                det_conf = results[0][:, 1]
+                det_xmin = results[0][:, 2]
+                det_ymin = results[0][:, 3]
+                det_xmax = results[0][:, 4]
+                det_ymax = results[0][:, 5]
+
+                top_indices = [i for i, conf in enumerate(det_conf) if conf >= conf_thresh]
+
+                top_conf = det_conf[top_indices]
+                top_label_indices = det_label[top_indices].tolist()
+                top_xmin = det_xmin[top_indices]
+                top_ymin = det_ymin[top_indices]
+                top_xmax = det_xmax[top_indices]
+                top_ymax = det_ymax[top_indices]
+
+                for i in range(top_conf.shape[0]):
+                    xmin = int(round(top_xmin[i] * to_draw.shape[1]))
+                    ymin = int(round(top_ymin[i] * to_draw.shape[0]))
+                    xmax = int(round(top_xmax[i] * to_draw.shape[1]))
+                    ymax = int(round(top_ymax[i] * to_draw.shape[0]))
+
+                    # Draw the box on top of the to_draw image
+                    class_num = int(top_label_indices[i])
+                    cv2.rectangle(to_draw, (xmin, ymin), (xmax, ymax), 
+                                  self.class_colors[class_num], 2)
+                    text = self.class_names[class_num] + " " + ('%.2f' % top_conf[i])
+
+                    text_top = (xmin, ymin-10)
+                    text_bot = (xmin + 80, ymin + 5)
+                    text_pos = (xmin + 5, ymin)
+                    cv2.rectangle(to_draw, text_top, text_bot, self.class_colors[class_num], -1)
+                    cv2.putText(to_draw, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
             # Calculate FPS
             # This computes FPS for everything, not just the model's execution 
