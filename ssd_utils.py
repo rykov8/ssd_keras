@@ -12,15 +12,49 @@ class BBoxUtility(object):
         priors: Priors and variances, numpy tensor of shape (num_priors, 8),
             priors[i] = [xmin, ymin, xmax, ymax, varxc, varyc, varw, varh].
         overlap_threshold: Threshold to assign box to a prior.
+        nms_thresh: Nms threshold.
+        top_k: Number of total bboxes to be kept per image after nms step.
 
     # References
         https://arxiv.org/abs/1512.02325
     """
-    def __init__(self, num_classes, priors=None, overlap_threshold=0.5):
+    # TODO add setter methods for nms_thresh and top_K
+    def __init__(self, num_classes, priors=None, overlap_threshold=0.5,
+                 nms_thresh=0.45, top_k=400):
         self.num_classes = num_classes
         self.priors = priors
         self.num_priors = 0 if priors is None else len(priors)
         self.overlap_threshold = overlap_threshold
+        self._nms_thresh = nms_thresh
+        self._top_k = top_k
+        self.boxes = tf.placeholder(dtype='float32', shape=(None, 4))
+        self.scores = tf.placeholder(dtype='float32', shape=(None,))
+        self.nms = tf.image.non_max_suppression(self.boxes, self.scores,
+                                                self._top_k,
+                                                iou_threshold=self._nms_thresh)
+        self.sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+
+    @property
+    def nms_thresh(self):
+        return self._nms_thresh
+
+    @nms_thresh.setter
+    def nms_thresh(self, value):
+        self._nms_thresh = value
+        self.nms = tf.image.non_max_suppression(self.boxes, self.scores,
+                                                self._top_k,
+                                                iou_threshold=self._nms_thresh)
+
+    @property
+    def top_k(self):
+        return self._top_k
+
+    @top_k.setter
+    def top_k(self, value):
+        self._top_k = value
+        self.nms = tf.image.non_max_suppression(self.boxes, self.scores,
+                                                self._top_k,
+                                                iou_threshold=self._nms_thresh)
 
     def iou(self, box):
         """Compute intersection over union for the box with all priors.
@@ -28,7 +62,7 @@ class BBoxUtility(object):
         # Arguments
             box: Box, numpy tensor of shape (4,).
 
-        # Returns
+        # Return
             iou: Intersection over union,
                 numpy tensor of shape (num_priors).
         """
@@ -54,7 +88,7 @@ class BBoxUtility(object):
             box: Box, numpy tensor of shape (4,).
             return_iou: Whether to concat iou to encoded values.
 
-        # Returns
+        # Return
             encoded_box: Tensor with encoded box
                 numpy tensor of shape (num_priors, 4 + int(return_iou)).
         """
@@ -88,7 +122,7 @@ class BBoxUtility(object):
             boxes: Box, numpy tensor of shape (num_boxes, 4 + num_classes),
                 num_classes without background.
 
-        # Returns
+        # Return
             assignment: Tensor with assigned boxes,
                 numpy tensor of shape (num_boxes, 4 + num_classes + 8),
                 priors in ground truth are fictitious,
@@ -124,7 +158,7 @@ class BBoxUtility(object):
             mbox_priorbox: Numpy array of prior boxes.
             variances: Numpy array of variances.
 
-        # Return:
+        # Return
             decode_bbox: Shifted priors.
         """
         prior_width = mbox_priorbox[:, 2] - mbox_priorbox[:, 0]
@@ -150,8 +184,7 @@ class BBoxUtility(object):
         decode_bbox = np.minimum(np.maximum(decode_bbox, 0.0), 1.0)
         return decode_bbox
 
-    def detection_out(self, predictions, num_classes=21, background_label_id=0,
-                      nms_thresh=0.45, top_k=400, keep_top_k=200,
+    def detection_out(self, predictions, background_label_id=0, keep_top_k=200,
                       confidence_threshold=0.01):
         """Do non maximum suppression (nms) on prediction results.
 
@@ -159,18 +192,15 @@ class BBoxUtility(object):
             predictions: Numpy array of predicted values.
             num_classes: Number of classes for prediction.
             background_label_id: Label of background class.
-            nms_thresh: Nms threshold.
-            top_k: Number of total bboxes to be kept per image after nms step.
             keep_top_k: Number of total bboxes to be kept per image
                 after nms step.
             confidence_threshold: Only consider detections,
                 whose confidences are larger than a threshold.
 
-        # Return:
+        # Return
             results: List of predictions for every picture. Each prediction is:
                 [label, confidence, xmin, ymin, xmax, ymax]
         """
-        config = tf.ConfigProto(device_count={'GPU': 0})
         mbox_loc = predictions[:, :, :4]
         variances = predictions[:, :, -4:]
         mbox_priorbox = predictions[:, :, -8:-4]
@@ -180,12 +210,6 @@ class BBoxUtility(object):
             results.append([])
             decode_bbox = self.decode_boxes(mbox_loc[i],
                                             mbox_priorbox[i], variances[i])
-            tf.reset_default_graph()
-            boxes = tf.placeholder(dtype='float32', shape=(None, 4))
-            scores = tf.placeholder(dtype='float32', shape=(None,))
-            nms = tf.image.non_max_suppression(boxes, scores, top_k,
-                                               iou_threshold=nms_thresh)
-            sess = tf.Session(config=config)
             for c in range(self.num_classes):
                 if c == background_label_id:
                     continue
@@ -194,8 +218,9 @@ class BBoxUtility(object):
                 if len(c_confs[c_confs_m]) > 0:
                     boxes_to_process = decode_bbox[c_confs_m]
                     confs_to_process = c_confs[c_confs_m]
-                    idx = sess.run(nms, feed_dict={boxes: boxes_to_process,
-                                                   scores: confs_to_process})
+                    feed_dict = {self.boxes: boxes_to_process,
+                                 self.scores: confs_to_process}
+                    idx = self.sess.run(self.nms, feed_dict=feed_dict)
                     good_boxes = boxes_to_process[idx]
                     confs = confs_to_process[idx][:, None]
                     labels = c * np.ones((len(idx), 1))
