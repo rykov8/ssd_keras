@@ -1,5 +1,6 @@
 .DS_Store
 train/*
+annotations/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
