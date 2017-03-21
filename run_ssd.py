@@ -1,5 +1,3 @@
-# coding: utf-8
-
 # converted from SSD.ipynb
 
 # In[1]:

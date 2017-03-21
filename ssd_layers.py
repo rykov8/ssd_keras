@@ -113,7 +113,11 @@ class PriorBox(Layer):
         layer_width = input_shape[self.waxis]
         layer_height = input_shape[self.haxis]
         num_boxes = num_priors_ * layer_width * layer_height
-        return (input_shape[0], num_boxes, 8)
+        return input_shape[0], num_boxes, 8
+
+    # support for Keras 2.0
+    def compute_output_shape(self, input_shape):
+        return self.get_output_shape_for(input_shape)
 
     def call(self, x, mask=None):
         if hasattr(x, '_keras_shape'):
