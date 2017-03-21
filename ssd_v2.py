@@ -112,7 +112,7 @@ def SSD300v2(input_shape, num_classes=21):
                      padding='same',
                      activation='relu')(conv5_2)
     pool5 = MaxPooling2D(name='pool5',
-                         pool_size=(2, 2),
+                         pool_size=(3, 3),
                          strides=(1, 1),
                          padding='same')(conv5_3)
 
@@ -290,14 +290,16 @@ def SSD300v2(input_shape, num_classes=21):
                             conv7_2_mbox_loc_flat,
                             conv8_2_mbox_loc_flat,
                             pool6_mbox_loc_flat],
-                           axis=1, name='mbox_loc')
+                           axis=1,
+                           name='mbox_loc')
     mbox_conf = concatenate([conv4_3_norm_mbox_conf_flat,
                              fc7_mbox_conf_flat,
                              conv6_2_mbox_conf_flat,
                              conv7_2_mbox_conf_flat,
                              conv8_2_mbox_conf_flat,
                              pool6_mbox_conf_flat],
-                            axis=1, name='mbox_conf')
+                            axis=1,
+                            name='mbox_conf')
     mbox_priorbox = concatenate([conv4_3_norm_mbox_priorbox,
                                  fc7_mbox_priorbox,
                                  conv6_2_mbox_priorbox,
