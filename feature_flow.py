@@ -1,26 +1,17 @@
 # coding: utf-8
 
 from keras.applications.imagenet_utils import preprocess_input
-from keras.backend.tensorflow_backend import set_session
-from keras.models import Model
 from keras.preprocessing import image
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import numpy as np
 from scipy.misc import imread
 import tensorflow as tf
 from keras import backend as K
-import math
-from subprocess import check_output
 import time
-import pickle
-import cv2
-from plot_util import *
 
+from plot_util import *
+from flow_util import *
 from ssd_v2 import SSD300v2
 from ssd_conv4_3 import SSD300_conv4_3
 from ssd_utils import BBoxUtility
-from plot_util import plot_activations
 
 voc_classes = ['Aeroplane', 'Bicycle', 'Bird', 'Boat', 'Bottle',
                'Bus', 'Car', 'Cat', 'Chair', 'Cow', 'Diningtable',
@@ -31,8 +22,22 @@ NUM_CLASSES = len(voc_classes) + 1
 network_size = 1024
 batch_size = 2
 input_shape = (network_size, network_size, 3)
-
 colors = plt.cm.hsv(np.linspace(0, 1, 21)).tolist()
+
+use_feature_flow = True
+use_dump_file = False
+plot_activation_enable = False
+#image_files = ['/home/cory/cedl/vid/videos/vid04/0270.jpg', '/home/cory/cedl/vid/videos/vid04/0275.jpg']
+#image_files = ['/home/cory/KITTI_Dataset/data_tracking_image_2/training/image_02/0000/000015.png',
+#               '/home/cory/KITTI_Dataset/data_tracking_image_2/training/image_02/0000/000018.png']
+
+
+# magic case: vid04 270 - 299
+
+# image_files = ['/home/cory/ssd_keras/GTAV/GD1015.png', '/home/cory/ssd_keras/GTAV/GD1020.png']
+image_files = ['/home/cory/ssd_keras/GTAV/GD1293.png', '/home/cory/ssd_keras/GTAV/GD1295.png']
+# '/home/cory/ssd_keras/GTAV/GD21.png'
+# '/home/cory/cedl/vid/videos/vid04/1000.jpg'
 
 
 def get_detections(result):
@@ -58,33 +63,6 @@ def get_layer_predict(model, input_layer_name, input_layer_feature):
                                  [model.output])
     model_predict = immediate_layer([input_layer_feature, 1])[0]
     return model_predict
-
-
-def plot_detections(image_list, detection_result):
-    # for each image
-    for i, img in enumerate(image_list):
-        detections = get_detections(detection_result[i])
-        detections = list(filter(lambda x: x['conf'] > 0.8, detections))
-        fig_img = plt.figure()
-        plt.imshow(img)
-
-        current_axis = fig_img.gca()
-
-        for det in detections:
-            xmin = int(round(det['xmin'] * img.shape[1]))
-            ymin = int(round(det['ymin'] * img.shape[0]))
-            xmax = int(round(det['xmax'] * img.shape[1]))
-            ymax = int(round(det['ymax'] * img.shape[0]))
-            conf = det['conf']
-            label = int(det['label'])
-            label_name = voc_classes[label - 1]
-            display_txt = '{:0.2f}, {}'.format(conf, label_name)
-            # print(display_txt)
-            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
-            color = colors[label]
-            current_axis.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
-            current_axis.text(xmin, ymin, display_txt, bbox={'facecolor': color, 'alpha': 0.5})
-        fig_img.show()
 
 
 def load_inputs(file_list):
@@ -123,64 +101,33 @@ def compare_model_layer(model1, input1, layer1, model2, input2, layer2, plot_act
         print('not equal')
 
     if plot_activation_enable:
-        plot_activations(layer_output1[0])
-        plot_activations(layer_output2[0])
+        plot_feature_map(layer_output1[0], 'feature_map_1')
+        plot_feature_map(layer_output2[0], 'feature_map_2')
 
 
-def shift_filter(feature, flow):
-    # feature shape = (None, 128, 128, 512)
-    shifted_feature = list()
-    for feat in feature:
-        print(feat.shape)
-        for i in range(feat.shape[-1]):
-            act2d = feat[..., i]
-            act2d = act2d[:, :, np.newaxis]
-            res = warp_flow(act2d, flow)
-            shifted_feature.append(res)
+def plot_detections(image_list, detection_result):
+    # for each image
+    for i, img in enumerate(image_list):
+        detections = get_detections(detection_result[i])
+        detections = list(filter(lambda x: x['conf'] > 0.8, detections))
+        fig = imshow_fig(img, title='frame_{:d}'.format(i+1))
 
-            if False:
-                print('act2d', act2d.shape, sum(act2d.ravel()))
-                print('flow', flow.shape, sum(flow.ravel()))
-                plt.figure(11)
-                plt.imshow(act2d[:, :, 0], cmap='gray')
-                plt.figure(12)
-                plt.imshow(flow[..., 0], cmap='gray')
-                plt.figure(13)
-                plt.imshow(flow[..., 1], cmap='gray')
-                plt.figure(14)
-                plt.imshow(res, cmap='gray')
-                plt.show()
-                pass
-
-    return np.asarray([shifted_feature]).swapaxes(1, 2).swapaxes(2, 3)
-
-
-def compute_flow(image_path1, image_path2):
-    flow_cmd = './run_flow.sh ' + image_path1 + ' ' + image_path2
-    check_output([flow_cmd], shell=True)
-    flow = np.load('./flow.npy')
-    flow = flow.transpose(1, 2, 0)
-    # flow.shape should be (height, width, 2)
-    return flow
-
-
-def warp_flow(img, flow):
-    h, w = flow.shape[:2]
-    flow_map = flow.copy()
-    flow_map[:, :, 0] += np.arange(w)
-    flow_map[:, :, 1] += np.arange(h)[:, np.newaxis]
-    res = cv2.remap(img, flow_map, None, cv2.INTER_LINEAR)
-    return res
-
-
-use_feature_flow = True
-use_dump_file = False
-plot_activation_enable = False
-image_files = ['/home/cory/cedl/vid/videos/vid04/0270.jpg', '/home/cory/cedl/vid/videos/vid04/0299.jpg']
-
-# image_files = ['/home/cory/ssd_keras/GTAV/GD1015.png', '/home/cory/ssd_keras/GTAV/GD1020.png']
-# '/home/cory/ssd_keras/GTAV/GD21.png'
-# '/home/cory/cedl/vid/videos/vid04/1000.jpg'
+        current_axis = fig.gca()
+        for det in detections:
+            xmin = int(round(det['xmin'] * img.shape[1]))
+            ymin = int(round(det['ymin'] * img.shape[0]))
+            xmax = int(round(det['xmax'] * img.shape[1]))
+            ymax = int(round(det['ymax'] * img.shape[0]))
+            conf = det['conf']
+            label = int(det['label'])
+            label_name = voc_classes[label - 1]
+            display_txt = '{:0.2f}, {}'.format(conf, label_name)
+            # print(display_txt)
+            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+            color = colors[label]
+            current_axis.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
+            current_axis.text(xmin, ymin, display_txt, bbox={'facecolor': color, 'alpha': 0.5})
+        fig.show()
 
 
 def feature_flow():
@@ -209,27 +156,17 @@ def feature_flow():
     flow_rgb = compute_flow(image_files[1], image_files[0])
 
     print('flow.shape', flow_rgb.shape)
-    fig = plt.figure()
-    fig.canvas.set_window_title('flow_rgb')
-    plt.imshow(cv2.cvtColor(draw_hsv(flow_rgb), cv2.COLOR_BGR2RGB))
+    imshow_fig(cv2.cvtColor(draw_hsv(flow_rgb), cv2.COLOR_BGR2RGB), title='flow_rgb')
 
     # flow (re-sized for feature map)
     flow_feature = get_flow_for_filter(flow_rgb)
-
-    fig = plt.figure()
-    fig.canvas.set_window_title('flow_feature_y')
-    plt.imshow(flow_feature[:, :, 0], cmap='gray')
-    fig = plt.figure()
-    fig.canvas.set_window_title('flow_feature_x')
-    plt.imshow(flow_feature[:, :, 1], cmap='gray')
+    # imshow_fig(flow_feature[:, :, 0], title='flow_feature_y', cmap='gray')
+    # imshow_fig(flow_feature[:, :, 1], title='flow_feature_x', cmap='gray')
 
     # warp image by flow_rgb
     iimg1 = cv2.imread(image_files[0])
     img_warp = warp_flow(iimg1, flow_rgb)
-
-    fig = plt.figure()
-    fig.canvas.set_window_title('img_warp')
-    plt.imshow(cv2.cvtColor(img_warp, cv2.COLOR_BGR2RGB))
+    imshow_fig(cv2.cvtColor(img_warp, cv2.COLOR_BGR2RGB), title='frame_2_warp')
 
     # shift feature
     shifted_feature = shift_filter(layer_dump, flow_feature)
@@ -247,7 +184,6 @@ def feature_flow():
                         True)
 
     sess.close()
-    cv2.waitKey(0)
     plt.show()
 
 

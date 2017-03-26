@@ -4,7 +4,19 @@ import cv2
 import math
 
 
-def plot_activations(activations, plot_enable=True):
+def imshow_fig(img, title='', **kwargs):
+    h = img.shape[0]
+    w = img.shape[1]
+    dpi = 96
+    fig = plt.figure(figsize=(w/dpi, h/dpi))
+    fig.add_axes([0., 0., 1., 1.])
+    fig.canvas.set_window_title(title)
+    plt.imshow(img, **kwargs)
+    plt.axis('off')
+    return fig
+
+
+def plot_feature_map(activations, title=''):
 
     num_channel = activations.shape[2]
     act_border = activations.shape[0]
@@ -27,9 +39,8 @@ def plot_activations(activations, plot_enable=True):
             # print('filter-{:d}  act_sum={:f}'.format(idx, act_sum))
 
     print('all_sum = {:f}'.format(all_sum))
-    fig_act = plt.figure()
-    plt.imshow(act_map, cmap='gray')
-    fig_act.show()
+    fig = imshow_fig(act_map, title, cmap='gray')
+    fig.show()
 
 
 def draw_hsv(flow):
