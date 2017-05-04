@@ -1,9 +1,23 @@
 import pickle
 import numpy as np
-import pdb
 
-img_width, img_height = 512, 512
-box_configs = [
+
+box_configs_ssd300 = [
+    {'layer_width': 38, 'layer_height': 38, 'num_prior': 3, 'min_size':  30.0,
+     'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
+    {'layer_width': 19, 'layer_height': 19, 'num_prior': 6, 'min_size':  60.0,
+     'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer_width': 10, 'layer_height': 10, 'num_prior': 6, 'min_size': 114.0,
+     'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer_width':  5, 'layer_height':  5, 'num_prior': 6, 'min_size': 168.0,
+     'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer_width':  3, 'layer_height':  3, 'num_prior': 6, 'min_size': 222.0,
+     'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer_width':  1, 'layer_height':  1, 'num_prior': 6, 'min_size': 276.0,
+     'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+]
+
+box_configs_ssd512 = [
     {'layer_width': 64, 'layer_height': 64, 'num_prior': 4, 'min_size': 35.84, 
      'max_size': 76.8, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0]},
     {'layer_width': 32, 'layer_height': 32, 'num_prior': 6, 'min_size': 76.8, 
@@ -20,24 +34,11 @@ box_configs = [
      'max_size': 537.6, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0]}    
 ]
 
-old_box_configs = [
-    {'layer_width': 38, 'layer_height': 38, 'num_prior': 3, 'min_size':  30.0,
-     'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
-    {'layer_width': 19, 'layer_height': 19, 'num_prior': 6, 'min_size':  60.0,
-     'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-    {'layer_width': 10, 'layer_height': 10, 'num_prior': 6, 'min_size': 114.0,
-     'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-    {'layer_width':  5, 'layer_height':  5, 'num_prior': 6, 'min_size': 168.0,
-     'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-    {'layer_width':  3, 'layer_height':  3, 'num_prior': 6, 'min_size': 222.0,
-     'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-    {'layer_width':  1, 'layer_height':  1, 'num_prior': 6, 'min_size': 276.0,
-     'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-]
-variance = [0.1, 0.1, 0.2, 0.2]
-boxes_paras = []
 
-def create_prior_box():
+def create_prior_box(box_configs, img_width, img_height):
+    variance = [0.1, 0.1, 0.2, 0.2]
+    boxes_paras = []
+    
     for layer_config in box_configs:
         layer_width, layer_height = layer_config["layer_width"], layer_config["layer_height"]
         num_priors = layer_config["num_prior"]
@@ -92,44 +93,12 @@ def create_prior_box():
 
 
 if __name__ == "__main__":
-    boxes_paras = create_prior_box()
     
-    """                                       
-                                          
-                                          
-           `.````            `            
-          `.,.....`      `...`.`.         
-         `.....,,::      ..,.`....        
-         .`....:,;:     `.......,,,       
-        `..,,,,:':      ,,.....,::,       
-        ,...,,:'.  `.,,``,,..,.,:::       
-        .,,,::'++,,,::::;::,,,,,:;:       
-         ,,:;'+':,:,,::'';:,,:,:,::       
-         ,;;' ::,,,:,::::;'::::::::       
-          :: ,::,,,,:,:::;;+;;;;;;,       
-     .,     `,,:::::;::::;;;'''';`        
-    .,,,`   ,:,,,:,,,,,;;;;;;+''..`       
-  `,,,:::  .,,;,,,,;;``,:;;;',,,,,,`      
-  .,,,::.`;#+::,,:,:  ,.,:;',,,,,,,:      
- `.,,,:: `#@#::,,:;. ###,;'.,,,,,:::      
- .,,,,:: :#@@::::::``##@+;.,,,,,:::::     
- .,,,,::,.+#:::::,::`@##::,,,,,:::;;;,    
- .,,,,:::;,::;:,,,':,.::;.,,,,,::::;;:`   
- ,,,,,:;;;;;:;:,::;:;;''+,,,,,:::;;`;;:   
-  .,,,:;;;;:;:;;:'';;'''',,,,,::;;:: :;:  
-  .,,,:;;`. :;,##;;''''';,,,:::;;`::, ::  
-   .,,:;:    :,'#:;''';;::,:::::`  ::  :` 
-   `,,;'        ,::;:`` :,,::;;`   .:  .` 
-    ,,;`                ,,:;;,      ,     
-     ,;                 ,::;        `     
-     .                  ,;                
-                        :`                
-                                          
-    """
-    
-    priors = pickle.load(open('prior_boxes_ssd300.pkl', 'rb'))
-    print(priors.shape)
-    print(boxes_paras.shape)
+    boxes_paras = create_prior_box(box_configs_ssd300, 300, 300)
+    with open('prior_boxes_ssd300.pkl', 'wb') as f:
+        pickle.dump(boxes_paras.astype('float32'), f, protocol=2)
+
+    boxes_paras = create_prior_box(box_configs_ssd512, 512, 512)
     with open('prior_boxes_ssd512.pkl', 'wb') as f:
-        pickle.dump(boxes_paras, f, protocol=2)
+        pickle.dump(boxes_paras.astype('float32'), f, protocol=2)
 
