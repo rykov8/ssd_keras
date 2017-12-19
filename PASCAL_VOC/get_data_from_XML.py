@@ -21,12 +21,15 @@ class XML_preprocessor(object):
             width = float(size_tree.find('width').text)
             height = float(size_tree.find('height').text)
             for object_tree in root.findall('object'):
-                for bounding_box in object_tree.iter('bndbox'):
-                    xmin = float(bounding_box.find('xmin').text)/width
-                    ymin = float(bounding_box.find('ymin').text)/height
-                    xmax = float(bounding_box.find('xmax').text)/width
-                    ymax = float(bounding_box.find('ymax').text)/height
-                bounding_box = [xmin,ymin,xmax,ymax]
+                bboxes_xml = object_tree.findall('bndbox')
+                if len(bboxes_xml) > 1:
+                    raise ValueError("Error: Found object that has more than one bbox for image ", os.path.join(path_prefix, filename))
+                obj_bbox_xml = bboxes_xml[0]  # There should be just one bbox per object
+                xmin = float(obj_bbox_xml.find('xmin').text) / width
+                ymin = float(obj_bbox_xml.find('ymin').text) / height
+                xmax = float(obj_bbox_xml.find('xmax').text) / width
+                ymax = float(obj_bbox_xml.find('ymax').text) / height
+                bounding_box = [xmin, ymin, xmax, ymax]
                 bounding_boxes.append(bounding_box)
                 class_name = object_tree.find('name').text
                 one_hot_class = self._to_one_hot(class_name)
