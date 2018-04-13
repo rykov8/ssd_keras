@@ -12,6 +12,10 @@ from keras.layers.merge import concatenate
 from keras.layers import Reshape
 from keras.models import Model
 from ssd_layers import PriorBox
+from keras.models import Sequential
+from keras.applications import MobileNet
+
+
 
 
 def SSD(input_shape, num_classes):
@@ -25,82 +29,21 @@ def SSD(input_shape, num_classes):
     # References
         https://arxiv.org/abs/1512.02325
     """
-    net = {}
-    # Block 1
-    input_tensor = Input(shape=input_shape)
-    img_size = (input_shape[1], input_shape[0])
-    net['input'] = input_tensor
-    net['conv0'] = Conv2D(32, (3, 3),strides=(2, 2),padding='same',name='conv0')(net['input'])
-    net['conv0'] = BatchNormalization( momentum=0.99, name='bn0')(net['conv0'])
-    net['conv0'] = Activation('relu')(net['conv0'])
-    net['conv1dw'] = SeparableConv2D(32, (3, 3),padding='same',name='conv1dw')(net['conv0'])
-    net['conv1dw'] = BatchNormalization( momentum=0.99, name='bn1dw')(net['conv1dw'])
-    net['conv1dw'] = Activation('relu')(net['conv1dw'])
-    net['conv1'] = Conv2D(64, (1, 1),padding='same',name='conv1')(net['conv1dw'])
-    net['conv1'] = BatchNormalization( momentum=0.99, name='bn1')(net['conv1'])
-    net['conv1'] = Activation('relu')(net['conv1'])
-    net['conv2dw'] = SeparableConv2D(64, (3, 3),strides=(2, 2),padding='same',name='conv2dw')(net['conv1'])
-    net['conv2dw'] = BatchNormalization( momentum=0.99, name='bn2dw')(net['conv2dw'])
-    net['conv2dw'] = Activation('relu')(net['conv2dw'])
-    net['conv2'] = Conv2D(128, (1, 1),padding='same',name='conv2')(net['conv2dw'])
-    net['conv2'] = BatchNormalization( momentum=0.99, name='bn2')(net['conv2'])
-    net['conv2'] = Activation('relu')(net['conv2'])
-    net['conv3dw'] = SeparableConv2D(128, (3, 3),padding='same',name='conv3dw')(net['conv2'])
-    net['conv3dw'] = BatchNormalization( momentum=0.99, name='bn3dw')(net['conv3dw'])
-    net['conv3dw'] = Activation('relu')(net['conv3dw'])
-    net['conv3'] = Conv2D(128, (1, 1),padding='same',name='conv3')(net['conv3dw'])
-    net['conv3'] = BatchNormalization(momentum=0.99, name='bn3')(net['conv3'])
-    net['conv3'] = Activation('relu')(net['conv3'])
-    net['conv4dw'] = SeparableConv2D(128, (3, 3),strides=(2, 2),  padding='same', name='conv4dw')(net['conv3'])
-    net['conv4dw'] = BatchNormalization( momentum=0.99, name='bn4dw')(net['conv4dw'])
-    net['conv4dw'] = Activation('relu')(net['conv4dw'])
-    net['conv4'] = Conv2D(256, (1, 1),padding='same',name='conv4')(net['conv4dw'])
-    net['conv4'] = BatchNormalization( momentum=0.99, name='bn4')(net['conv4'])
-    net['conv4'] = Activation('relu')(net['conv4'])
-    net['conv5dw'] = SeparableConv2D(256, (3, 3),padding='same',name='conv5dw')(net['conv4'])
-    net['conv5dw'] = BatchNormalization( momentum=0.99, name='bn5dw')(net['conv5dw'])
-    net['conv5dw'] = Activation('relu')(net['conv5dw'])
-    net['conv5'] = Conv2D(256, (1, 1),padding='same',name='conv5')(net['conv5dw'])
-    net['conv5'] = BatchNormalization( momentum=0.99, name='bn5')(net['conv5'])
-    net['conv5'] = Activation('relu')(net['conv5'])
-    net['conv6dw'] = SeparableConv2D(256, (3, 3),strides=(2, 2),  padding='same', name='conv6dw')(net['conv5'])
-    net['conv6dw'] = BatchNormalization( momentum=0.99, name='bn6dw')(net['conv6dw'])
-    net['conv6dw'] = Activation('relu')(net['conv6dw'])
-    net['conv6'] = Conv2D(512, (1, 1),  padding='same', name='conv6')(net['conv6dw'])
-    net['conv6'] = BatchNormalization( momentum=0.99, name='bn6')(net['conv6'])
-    net['conv6'] = Activation('relu')(net['conv6'])
+    img_size=(input_shape[1],input_shape[0])
+    input_shape=(input_shape[1],input_shape[0],3)
+    mobilenet_input_shape=(224,224,3)
+    mobilenet=MobileNet(input_shape=mobilenet_input_shape,include_top=True,weights='imagenet')
+    net={}
+    net['input']=Input(input_shape)
+    prev=net['input']
+    for layer in mobilenet.layers:
+        net_key='mobilenet_{}'.format(layer.name)
+        net[net_key]=layer(prev)
+        prev=net[net_key]
+        if layer.name=="conv_dw_11_relu":
+            break
 
-    # repeat5times
-    net['conv7dw'] = SeparableConv2D(512, (3, 3),padding='same',name='conv7dw')(net['conv6'])
-    net['conv7dw'] = BatchNormalization( momentum=0.99, name='bn7dw')(net['conv7dw'])
-    net['conv7dw'] = Activation('relu')(net['conv7dw'])
-    net['conv7'] = Conv2D(512, (1, 1),padding='same',name='conv7')(net['conv7dw'])
-    net['conv7'] = BatchNormalization( momentum=0.99, name='bn7')(net['conv7'])
-    net['conv7'] = Activation('relu')(net['conv7'])
-    net['conv8dw'] = SeparableConv2D(512, (3, 3),  padding='same', name='conv8dw')(net['conv7'])
-    net['conv8dw'] = BatchNormalization( momentum=0.99, name='bn8dw')(net['conv8dw'])
-    net['conv8dw'] = Activation('relu')(net['conv8dw'])
-    net['conv8'] = Conv2D(512, (1, 1),  padding='same', name='conv8')(net['conv8dw'])
-    net['conv8'] = BatchNormalization( momentum=0.99, name='bn8')(net['conv8'])
-    net['conv8'] = Activation('relu')(net['conv8'])
-    net['conv9dw'] = SeparableConv2D(512, (3, 3),  padding='same', name='conv9dw')(net['conv8'])
-    net['conv9dw'] = BatchNormalization( momentum=0.99, name='bn9dw')(net['conv9dw'])
-    net['conv9dw'] = Activation('relu')(net['conv9dw'])
-    #net['conv9dw'] = Dropout(0.5, name='drop9dw')(net['conv9dw'])
-    net['conv9'] = Conv2D(512, (1, 1), padding='same',name='conv9')(net['conv9dw'])
-    net['conv9'] = BatchNormalization( momentum=0.99, name='bn9')(net['conv9'])
-    net['conv9'] = Activation('relu')(net['conv9'])
-    net['conv10dw'] = SeparableConv2D(512, (3, 3), padding='same',name='conv10dw')(net['conv9'])
-    net['conv10dw'] = BatchNormalization( momentum=0.99, name='bn10dw')(net['conv10dw'])
-    net['conv10dw'] = Activation('relu')(net['conv10dw'])
-    net['conv10'] = Conv2D(512, (1, 1),  padding='same', name='conv10')(net['conv10dw'])
-    net['conv10'] = BatchNormalization( momentum=0.99, name='bn10')(net['conv10'])
-    net['conv10'] = Activation('relu')(net['conv10'])
-    net['conv11dw'] = SeparableConv2D(512, (3, 3),  padding='same', name='conv11dw')(net['conv10'])
-    net['conv11dw'] = BatchNormalization( momentum=0.99, name='b11dw')(net['conv11dw'])
-    net['conv11dw'] = Activation('relu')(net['conv11dw'])
-    #net['conv11dw'] = Dropout(0.5, name='drop11dw')(net['conv11dw'])
-    net['conv11'] = Conv2D(512, (1, 1),  padding='same', name='conv11')(net['conv11dw'])
+    net['conv11'] = Conv2D(512, (1, 1),  padding='same', name='conv11')(net[net_key])
     net['conv11'] = BatchNormalization( momentum=0.99, name='bn11')(net['conv11'])
     net['conv11'] = Activation('relu')(net['conv11'])
     # Block
