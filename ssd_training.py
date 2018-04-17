@@ -48,6 +48,30 @@ def softmax_loss(y_true, y_pred):
     softmax_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
     return softmax_loss
 
+def focal_loss(y_true, y_pred, gamma=2):
+    """Compute focal loss.
+    
+    # Arguments
+        y_true: Ground truth targets,
+            tensor of shape (?, num_boxes, num_classes).
+        y_pred: Predicted logits,
+            tensor of shape (?, num_boxes, num_classes).
+    
+    # Returns
+        focal_loss: Focal loss, tensor of shape (?, num_boxes).
+
+    # References
+        https://arxiv.org/abs/1708.02002
+    """
+    alpha = 0.25
+    #y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+    eps = K.epsilon()
+    y_pred = K.clip(y_pred, eps, 1. - eps)
+    
+    pt = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
+    focal_loss = -tf.reduce_sum(alpha * K.pow(1. - pt, gamma) * K.log(pt), axis=-1)
+    return focal_loss
+
 
 def compute_metrics(class_true, class_pred, conf, top_k=100):
     """Compute precision, recall, accuracy and f-measure for top_k predictions.
@@ -172,6 +196,71 @@ class SSDLoss(object):
                      'pos_conf_loss', 
                      'neg_conf_loss', 
                      'pos_loc_loss', 
+                     'precision', 
+                     'recall',
+                     'accuracy',
+                     'fmeasure', 
+                    ]:
+            f = make_fcn(eval(name))
+            f.__name__ = name
+            self.metrics.append(f)
+        
+        return total_loss
+
+
+class SSDFocalLoss(object):
+
+    def __init__(self, alpha=1.0):
+        self.alpha = alpha
+        self.metrics = []
+    
+    def compute(self, y_true, y_pred):
+        # y.shape (batches, priors, 4 x segment_offset + n x class_label)
+        
+        batch_size = tf.shape(y_true)[0]
+        num_priors = tf.shape(y_true)[1]
+        num_classes = tf.shape(y_true)[2] - 4
+        eps = K.epsilon()
+        
+        # confidence loss
+        conf_true = tf.reshape(y_true[:,:,4:], [-1, num_classes])
+        conf_pred = tf.reshape(y_pred[:,:,4:], [-1, num_classes])
+        
+        class_true = tf.argmax(conf_true, axis=1)
+        class_pred = tf.argmax(conf_pred, axis=1)
+        
+        neg_mask_float = conf_true[:,0]
+        neg_mask = tf.cast(neg_mask_float, tf.bool)
+        pos_mask = tf.logical_not(neg_mask)
+        pos_mask_float = tf.cast(pos_mask, tf.float32)
+        num_total = tf.cast(tf.shape(conf_true)[0], tf.float32)
+        num_pos = tf.reduce_sum(pos_mask_float)
+        num_neg = num_total - num_pos
+        
+        conf_loss = focal_loss(conf_true, conf_pred)
+        conf_loss = tf.reduce_sum(conf_loss)
+        
+        conf_loss = conf_loss / (num_total + eps)
+        
+        # offset loss
+        loc_true = tf.reshape(y_true[:,:,0:4], [-1, 4])
+        loc_pred = tf.reshape(y_pred[:,:,0:4], [-1, 4])
+        
+        loc_loss = smooth_l1_loss(loc_true, loc_pred)
+        pos_loc_loss = tf.reduce_sum(loc_loss * pos_mask_float) # only for positives
+        
+        loc_loss = pos_loc_loss / (num_pos + eps)
+        
+        # total loss
+        total_loss = conf_loss + self.alpha * loc_loss
+        
+        # metrics
+        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
+        
+        def make_fcn(t):
+            return lambda y_true, y_pred: t
+        for name in ['conf_loss', 
+                     'loc_loss', 
                      'precision', 
                      'recall',
                      'accuracy',
