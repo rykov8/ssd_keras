@@ -49,6 +49,41 @@ def softmax_loss(y_true, y_pred):
     return softmax_loss
 
 
+def compute_metrics(class_true, class_pred, conf, top_k=100):
+    """Compute precision, recall, accuracy and f-measure for top_k predictions.
+    
+    from top_k predictions that are TP FN or FP (TN kept out)
+    """
+
+    top_k = tf.cast(top_k, tf.int32)
+    eps = K.epsilon()
+    
+    mask = tf.greater(class_true + class_pred, 0)
+    mask_float = tf.cast(mask, tf.float32)
+    
+    vals, idxs = tf.nn.top_k(conf * mask_float, k=top_k)
+    
+    top_k_class_true = tf.gather(class_true, idxs)
+    top_k_class_pred = tf.gather(class_pred, idxs)
+    
+    true_mask = tf.equal(top_k_class_true, top_k_class_pred)
+    false_mask = tf.logical_not(true_mask)
+    pos_mask = tf.greater(top_k_class_pred, 0)
+    neg_mask = tf.logical_not(pos_mask)
+    
+    tp = tf.reduce_sum(tf.cast(tf.logical_and(true_mask, pos_mask), tf.float32))
+    fp = tf.reduce_sum(tf.cast(tf.logical_and(false_mask, pos_mask), tf.float32))
+    fn = tf.reduce_sum(tf.cast(tf.logical_and(false_mask, neg_mask), tf.float32))
+    tn = tf.reduce_sum(tf.cast(tf.logical_and(true_mask, neg_mask), tf.float32))
+    
+    precision = tp / (tp + fp + eps)
+    recall = tp / (tp + fn + eps)
+    accuracy = (tp + tn) / (tp + tn + fp + fn + eps)
+    fmeasure = 2 * (precision * recall) / (precision + recall + eps)
+    
+    return precision, recall, accuracy, fmeasure
+
+
 class SSDLoss(object):
     """Multibox loss for SSD.
     
@@ -147,4 +182,153 @@ class SSDLoss(object):
             self.metrics.append(f)
         
         return total_loss
+
+
+class Logger(Callback):
+    
+    def __init__(self, logdir):
+        super(Logger, self).__init__()
+        self.logdir = logdir
+    
+    def save_history(self):
+        with open(self.logdir+'/history.json','w') as f:
+            json.dump(self.model.history.history, f)
+        f.close()
+    
+    def on_train_begin(self, logs=None):
+        self.json_log = open(self.logdir+'/log.json', mode='wt', buffering=1)
+        self.start_time = time.time()
+        
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch = epoch
+        self.save_history()
+
+    def on_batch_begin(self, batch, logs=None):
+        self.batch = batch
+        # steps/batches/iterations
+        steps_per_epoch = self.params['steps']
+        self.iteration = self.epoch * steps_per_epoch + batch
+        
+    def on_batch_end(self, batch, logs=None):
+        data = {k:float(logs[k]) for k in self.model.metrics_names}
+        data['iteration'] = self.iteration
+        data['epoch'] = self.epoch
+        data['batch'] = self.batch
+        data['time'] = time.time() - self.start_time
+        data['lr'] = float(K.get_value(self.model.optimizer.lr))
+        self.json_log.write(json.dumps(data) + '\n')
+    
+    def on_epoch_end(self, epoch, logs=None):
+        pass
+
+    def on_train_end(self, logs=None):
+        self.json_log.close()
+        self.save_history()
+
+
+def plot_log(log_file, names=None, limits=None, window_length=250, log_file_compare=None):
+    
+    def load_log(log_file):
+        with open(log_file,'r') as f:
+            data = f.readlines()
+        keys = json.loads(data[0]).keys()
+        d = {k:[] for k in keys}
+        for i, line in enumerate(data):
+            if not limits == None and (i < limits[0] or i > limits[1]):
+                continue
+            dat = json.loads(line)
+            for k in keys:
+                d[k].append(dat[k])
+        d = {k:np.array(d[k]) for k in keys}
+        return d
+    
+    d = load_log(log_file)
+    print(log_file)
+    
+    if log_file_compare is not None:
+        d2 = load_log(log_file_compare)
+        print(log_file_compare)
+    
+    if names is None:
+        names = [k for k in d.keys() if k not in ['epoch', 'batch', 'iteration']]
+    else:
+        names = [k for k in names if k in d.keys()]
+    print(names)
+
+    iteration = d['iteration']
+    epoch = d['epoch']
+    idx = []
+    for i in range(1,len(epoch)):
+        if epoch[i] != epoch[i-1]:
+            idx.append(i)
+    
+    # reduce epoch ticks
+    max_ticks = 20
+    n = len(idx)
+    if n > 1:
+        n = round(n,-1*floor(log10(n)))
+        while n >= max_ticks:
+            if n/2 < max_ticks:
+                n /= 2
+            else:
+                if n/5 < max_ticks:
+                    n /= 5
+                else:
+                    n /= 10
+        idx_step = ceil(len(idx)/n)
+        epoch_step = epoch[idx[idx_step]] - epoch[idx[0]]
+        for first_idx in range(len(idx)):
+            if epoch[idx[first_idx]] % epoch_step == 0:
+                break
+        idx_red = [idx[i] for i in range(first_idx, len(idx), idx_step)]
+    else:
+        idx_red = idx
+    
+    if window_length is not None:
+        #w = np.ones(window_length) # moving average
+        w = np.hanning(window_length) # hanning window
+        wh = int(window_length/2)
+    
+    for k in names:
+        if k in ['epoch', 'batch', 'iteration', 'time']:
+            continue
+        plt.figure(figsize=(16, 8))
+        plt.plot(iteration, d[k], zorder=0)
+        
+        # filter signal
+        if window_length and len(iteration) > window_length:
+            x = iteration[wh-1:-wh]
+            y = np.convolve(w/w.sum(), d[k], mode='valid')
+            plt.plot(x, y)
+        
+        # second log
+        if log_file_compare is not None and k in d2.keys():
+            plt.plot(d2['iteration'], d2[k], zorder=0)
+            
+            if window_length and len(d2['iteration']) > window_length:
+                x = d2['iteration'][wh-1:-wh]
+                y = np.convolve(w/w.sum(), d2[k], mode='valid')
+                plt.plot(x, y)
+        
+        xmin = iteration[0]
+        xmax = iteration[-1]
+        plt.title(k, y=1.05)
+        ax1 = plt.gca()
+        ax1.set_xlim(xmin, xmax)
+        ax1.yaxis.grid(True)
+        #ax1.set_xlabel('iteration')
+        #ax1.set_yscale('linear')
+        ax1.get_yaxis().get_major_formatter().set_useOffset(False)
+        
+        ax2 = ax1.twiny()
+        ax2.xaxis.grid(True)
+        ax2.set_xticks(iteration[idx_red])
+        ax2.set_xticklabels(epoch[idx_red])
+        ax2.set_xlim(xmin, xmax)
+        #ax2.set_xlabel('epoch')
+        #ax2.set_yscale('linear')
+        ax2.get_yaxis().get_major_formatter().set_useOffset(False)
+        
+        plt.show()
+
 
