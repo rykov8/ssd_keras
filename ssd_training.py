@@ -184,6 +184,70 @@ class SSDLoss(object):
         return total_loss
 
 
+class LearningRateDecay(Callback):
+    def __init__(self, methode='linear', base_lr=1e-3, n_desired=40000, desired=0.1, bias=0.0, minimum=0.1):
+        super(LearningRateDecay, self).__init__()
+        self.methode = methode
+        self.base_lr = base_lr
+        self.n_desired = n_desired
+        self.desired = desired
+        self.bias = bias
+        self.minimum = minimum
+        
+        #TODO: better naming
+
+    def compute_learning_rate(self, n, methode):
+        n_desired = self.n_desired
+        desired = self.desired
+        base_lr = self.base_lr
+        bias = self.bias
+        
+        offset = base_lr * desired * bias
+        base_lr = base_lr - offset
+        
+        desired = desired / (1-desired*bias) * (1-bias)
+        
+        if methode == 'default':
+            k = (1 - desired) / n_desired
+            lr = np.maximum( -k * n + 1, 0)
+        elif methode == 'linear':
+            k = (1 / desired - 1) / n_desired
+            lr = 1 / (1 + k * n)
+        elif methode == 'quadratic':
+            k = (np.sqrt(1/desired)-1) / n_desired
+            lr = 1 / (1 + k * n)**2
+        elif methode == 'exponential':
+            k = -1 * np.log(desired) / n_desired
+            lr = np.exp(-k*n)
+        
+        lr = base_lr * lr + offset
+        lr = np.maximum(lr, self.base_lr * self.minimum)
+        return lr
+        
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch = epoch
+
+    def on_batch_begin(self, batch, logs=None):
+        self.batch = batch
+        steps_per_epoch = self.params['steps']
+        iteration = self.epoch * steps_per_epoch + batch
+        
+        lr = self.compute_learning_rate(iteration, self.methode)
+        K.set_value(self.model.optimizer.lr, lr)
+
+    def plot_learning_rates(self):
+        n = np.linspace(0, self.n_desired*2, 101)
+        plt.figure(figsize=[16, 6])
+        plt.plot([n[0], n[-1]], [self.base_lr*self.desired*self.bias]*2, 'k')
+        for m in ['default', 'linear', 'quadratic', 'exponential']:
+            plt.plot(n, self.compute_learning_rate(n, m))
+        plt.legend(['bias', '$-kn+1$', '$1/(1+kn)$', '$1/(1+kn)^2$', '$e^{-kn}$'])
+        plt.grid()
+        plt.xlim(0, n[-1])
+        plt.ylim(0, None)
+        plt.show()
+
+
 class Logger(Callback):
     
     def __init__(self, logdir):
