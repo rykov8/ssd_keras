@@ -1,5 +1,6 @@
 checkpoints/*
 data/*
+models/*
 
 
 .DS_Store
@@ -13,7 +14,7 @@ __pycache__/
 *.so
 
 #HDF5
-*.hdf5
+#*.hdf5
 
 # Distribution / packaging
 .Python
