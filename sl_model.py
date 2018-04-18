@@ -121,3 +121,24 @@ def SL512(input_shape=(512, 512, 3), num_classes=2):
     
     return model
 
+
+def DSODSL512(input_shape=(512, 512, 3), num_classes=2, activation='relu'):
+    K.clear_session()
+    
+    # DSOD body
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = dsod512_body(x, activation=activation)
+    
+    # Add multibox head for classification and regression
+    num_priors = [1, 1, 1, 1, 1, 1, 1]
+    normalizations = [20, -1, -1, -1, -1, -1, -1]
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    model = Model(input_tensor, output_tensor)
+
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    model.source_layers_names = [l.name.split('/')[0] for l in source_layers]
+    
+    return model
+
