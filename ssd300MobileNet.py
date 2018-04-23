@@ -19,7 +19,7 @@ from keras.applications import MobileNet
 
 
 def SSD(input_shape, num_classes):
-    """SSD300 architecture.
+    """MobileNet-SSD300 architecture.
 
     # Arguments
         input_shape: Shape of the input image,
@@ -27,21 +27,13 @@ def SSD(input_shape, num_classes):
         num_classes: Number of classes including background.
 
     # References
-        https://arxiv.org/abs/1512.02325
+        https://github.com/chuanqi305/MobileNet-SSD
     """
     img_size=(input_shape[1],input_shape[0])
     input_shape=(input_shape[1],input_shape[0],3)
     mobilenet_input_shape=(224,224,3)
-    mobilenet=MobileNet(input_shape=mobilenet_input_shape,include_top=True,weights='imagenet')
-    net={}
-    net['input']=Input(input_shape)
-    prev=net['input']
-    for layer in mobilenet.layers:
-        net_key='mobilenet_{}'.format(layer.name)
-        net[net_key]=layer(prev)
-        prev=net[net_key]
-        if layer.name=="conv_dw_11_relu":
-            break
+    mobilenet=MobileNet(input_shape=mobilenet_input_shape,include_top=False,weights='imagenet')
+    FeatureExtractor=Model(inputs=mobilenet.input, outputs=mobilenet.get_layer('conv_dw_11_relu').output)
 
     net['conv11'] = Conv2D(512, (1, 1),  padding='same', name='conv11')(net[net_key])
     net['conv11'] = BatchNormalization( momentum=0.99, name='bn11')(net['conv11'])
