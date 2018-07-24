@@ -54,7 +54,7 @@ class GTUtility(BaseGTUtility):
                     box = np.dot(box, rot_matrix(-theta))
                     box += [cx + w/2., cy + h/2.]
                     box = list(box.flatten())
-                    box = box + [0, 1]
+                    box = box + [1]
                     boxes.append(box)
                     text.append('')
             

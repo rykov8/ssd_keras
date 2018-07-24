@@ -6,6 +6,7 @@ import tensorflow as tf
 import keras.backend as K
 import h5py
 import os
+import sys
 
 from ssd_utils import PriorMap
 
@@ -27,7 +28,7 @@ def polygon_to_rbox(xy):
     cx, cy = c = np.sum(xy, axis=0) / len(xy)
     # width is mean of top and bottom edge length
     w = (norm(dt) + norm(db)) / 2.
-    # height is distance from center to top plus distance form center to bottom edge
+    # height is distance from center to top edge plus distance form center to bottom edge
     h = norm(np.cross(dt, tl-c))/(norm(dt)+eps) + norm(np.cross(db, br-c))/(norm(db)+eps)
     #h = point_line_distance(c, tl, tr ) +  point_line_distance(c, br, bl )
     #h = (norm(tl-bl) + norm(tr-br)) / 2.
@@ -42,6 +43,41 @@ def rbox_to_polygon(rbox):
     box += rbox[:2]
     return box
 
+def polygon_to_rbox2(xy):
+    tl, tr, br, bl = xy
+    # length of top and bottom edge
+    dt, db = tr-tl, bl-br
+    # height is mean between distance from top to bottom right and distance from top edge to bottom left
+    h = (norm(np.cross(dt, tl-br)) + norm(np.cross(dt, tr-bl))) / (2*(norm(dt)+eps))
+    return np.hstack((tl,tr,h))
+
+def rbox2_to_polygon(rbox):
+    x1, y1, x2, y2, h = rbox
+    alpha = np.arctan2(x1-x2, y2-y1)
+    dx = -h*np.cos(alpha)
+    dy = -h*np.sin(alpha)
+    xy = np.reshape([x1,y1,x2,y2,x2+dx,y2+dy,x1+dx,y1+dy], (-1,2))
+    return xy
+
+def polygon_to_rbox3(xy):
+    tl, tr, br, bl = xy
+    # length of top and bottom edge
+    dt, db = tr-tl, bl-br
+    # height is mean between distance from top to bottom right and distance from top edge to bottom left
+    h = (norm(np.cross(dt, tl-br)) + norm(np.cross(dt, tr-bl))) / (2*(norm(dt)+eps))
+    p1 = (tl + bl) / 2.
+    p2 = (tr + br) / 2. 
+    return np.hstack((p1,p2,h))
+
+def rbox3_to_polygon(rbox):
+    x1, y1, x2, y2, h = rbox
+    alpha = np.arctan2(x1-x2, y2-y1)
+    dx = -h*np.cos(alpha) / 2.
+    dy = -h*np.sin(alpha) / 2.
+    xy = np.reshape([x1-dx,y1-dy,x2-dx,y2-dy,x2+dx,y2+dy,x1+dx,y1+dy], (-1,2))
+    return xy
+
+
 def plot_rbox(box, color='r', linewidth=1):
     xy_rec = rbox_to_polygon(box)
     ax = plt.gca()
@@ -51,24 +87,25 @@ def plot_rbox(box, color='r', linewidth=1):
 class PriorUtil(object):
     """Utility for LinkSeg prior boxes.
     """
-    def __init__(self, model, source_layers_names=None):
+    def __init__(self, model):
         
-        if source_layers_names is None and hasattr(model, 'source_layers_names'):
-            source_layers_names = model.source_layers_names
+        source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
+        self.source_layers_names = source_layers_names
         
         self.model = model
         self.image_size = model.input_shape[1:3]
         gamma = 1.5
-        image_w, image_h = self.image_size
+        self.image_h, self.image_w = self.image_size
         self.prior_maps = []
         previous_map_size = None
         for i in range(len(source_layers_names)):
             layer = model.get_layer(source_layers_names[i])
-            map_w, map_h = map_size = layer.output_shape[1:3]
+            #map_w, map_h = map_size = layer.output_shape[1:3]
+            map_h, map_w = map_size = layer.output_shape[1:3]
             if i > 0 and np.all(np.array(previous_map_size) != np.array(map_size)*2):
                 print('wrong source layer size...')
             previous_map_size = map_size
-            a_l = gamma * image_w / map_w
+            a_l = gamma * self.image_w / map_w
             m = PriorMap(source_layer_name=source_layers_names[i],
                          image_size=self.image_size,
                          map_size=map_size,
@@ -109,7 +146,8 @@ class PriorUtil(object):
             priors_variances.append(m.priors_variances)
             
             # compute inter layer neighbors
-            w, h = m.map_size
+            #w, h = m.map_size
+            h, w = m.map_size
             xy_pos = np.asanyarray(np.meshgrid(np.arange(w), np.arange(h))).reshape(2,-1).T
             xy = np.tile(xy_pos, (1,8))
             xy += np.array([-1,-1, 0,-1, +1,-1, 
@@ -162,7 +200,7 @@ class PriorUtil(object):
         polygons = []
         for word in gt_data:
             xy = np.reshape(word[:8], (-1, 2))
-            xy = np.copy(xy) * self.image_size
+            xy = np.copy(xy) * (self.image_w, self.image_h)
             polygons.append(xy)
             rbox = polygon_to_rbox(xy)
             rboxes.append(rbox)
@@ -301,7 +339,7 @@ class PriorUtil(object):
         return np.concatenate([segment_labels, segment_offsets, inter_layer_links_labels, cross_layer_links_labels], axis=1)
     
     def decode(self, model_output,
-                segment_threshold=0.55, link_threshold=0.35, debug=False, debug_combining=False):
+                segment_threshold=0.55, link_threshold=0.35, top_k_segments=800, debug=False, debug_combining=False):
         """Decode local classification and regression results to combined bounding boxes.
         
         # Arguments
@@ -330,7 +368,9 @@ class PriorUtil(object):
         first_map_offset = map_offsets[1] # 64*64
         
         # filter segments, only pos segments
-        segment_mask = segment_labels[:,1] > segment_threshold
+        confs = segment_labels[:,1]
+        segment_mask = confs > segment_threshold
+        segment_mask[np.argsort(-confs)[top_k_segments:]] = False
 
         # filter links, pos links connected with pos segments 
         inter_layer_link_mask = (inter_layer_links_labels[:,1::2] > link_threshold) & np.repeat(segment_mask[np.newaxis, :], 8, axis=0).T
@@ -371,17 +411,32 @@ class PriorUtil(object):
                         adjacency[s_idx].add(n_idx)
                         adjacency[n_idx].add(s_idx)
         
+        
         # find connected components
         ids = {n:None for n in segment_idxs}
-
+        
+        # recursive 
         def dfs(node, group_id):
             if ids[node] == None:
                 ids[node] = group_id
                 for a in adjacency[node]:
                     dfs(a, group_id)
-
         for i in range(len(nodes)):
             dfs(nodes[i], i)
+        
+        # none-recursive
+        #stack = [*nodes]
+        #while len(stack) > 0:
+        #    node = stack.pop()
+        #    for n in adjacency[node]:
+        #        if ids[n] == None:
+        #            if ids[node] == None:
+        #                ids[n] = node
+        #            else:
+        #                ids[n] = ids[node]
+        #            stack.append(n)
+        
+        
         groups = {i:[] for i in set(ids.values())}
         for k, v in ids.items():
             groups[v].append(k)
@@ -441,7 +496,7 @@ class PriorUtil(object):
             if debug_combining:
                 ax = plt.gca()
                 for rbox in rboxes_s:
-                    c = 'grbck'
+                    c = 'gmbck'
                     c = c[f%len(c)]
                     plot_rbox(rbox, color=c, linewidth=1)
                     # segment centers
@@ -449,7 +504,7 @@ class PriorUtil(object):
                     # projected segment centers
                     plt.plot(x_proj, y_proj, 'oy', markersize=4)
                 # lines
-                x_l = np.array([0,self.image_size[0]])
+                x_l = np.array([0,self.image_w])
                 y_l = a * x_l + b
                 plt.plot(x_l, y_l, 'r')
                 # endpoints

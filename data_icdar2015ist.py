@@ -41,7 +41,7 @@ class GTUtility(BaseGTUtility):
                 for line in f:
                     line_split = line.strip().split(',')
                     box = [float(v) for v in line_split[0:8]]
-                    box = box + [0, 1]
+                    box = box + [1]
                     boxes.append(box)
                     text.append(line_split[8])
             boxes = np.asarray(boxes)

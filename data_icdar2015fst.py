@@ -52,7 +52,7 @@ class GTUtility(BaseGTUtility):
                         xmax = box[2]
                         ymax = box[3]
                         box = [xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax]
-                    box = box + [0, 1]
+                    box = box + [1]
                     boxes.append(box)
                     text.append(line_split[4][1:-1])
             boxes = np.asarray(boxes)

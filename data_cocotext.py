@@ -87,9 +87,7 @@ class GTUtility(BaseGTUtility):
                 boxes[:,1::2] /= img_height
                     
                 # append classes
-                class_one_hot = np.zeros((boxes.shape[0], len(self.classes)))
-                class_one_hot[:,1] = 1
-                boxes = np.concatenate([boxes, class_one_hot], axis=1)
+                boxes = np.concatenate([boxes, np.ones([boxes.shape[0],1])], axis=1)
                 
                 self.image_names.append(image_name)
                 self.data.append(boxes)

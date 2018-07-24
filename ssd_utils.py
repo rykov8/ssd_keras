@@ -104,9 +104,13 @@ def non_maximum_suppression(boxes, confs, overlap_threshold, top_k):
         
         w = np.maximum(0, xx2 - xx1)
         h = np.maximum(0, yy2 - yy1)
+        I = w * h 
         
-        overlap = (w * h) / (area[idxs] + eps)
-        # TODO: this is actually not the IoU, find out why it works?
+        #overlap = I / (area[idxs] + eps)
+        # as in Girshick et. al.
+        
+        U = area[idxs] + area[i] - I
+        overlap = I / (U + eps)
         
         idxs = idxs[overlap <= overlap_threshold]
         
@@ -189,6 +193,8 @@ class PriorMap(object):
     def compute_priors(self):
         image_h, image_w = self.image_size
         map_h, map_w = self.map_size
+        #image_w, image_h = self.image_size
+        #map_w, map_h = self.map_size
         min_size, max_size = self.minmax_size
         
         # define centers of prior boxes
@@ -283,17 +289,18 @@ class PriorMap(object):
 class PriorUtil(object):
     """Utility for SSD prior boxes.
     """
-    def __init__(self, model, source_layers_names=None, aspect_ratios=None, shifts=None,
-            minmax_sizes=None, steps=None, special_ssd_boxes=None, flips=None, clips=None):
+    def __init__(self, model, aspect_ratios=None, shifts=None,
+            minmax_sizes=None, steps=None, scale=None, special_ssd_boxes=None, flips=None, clips=None):
+        
+        source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
+        self.source_layers_names = source_layers_names
         
         self.model = model
         self.image_size = model.input_shape[1:3]
         
-        # take parameters from model definition if they exist there
-        if source_layers_names is None:
-            if hasattr(model, 'source_layers_names'):
-                source_layers_names = model.source_layers_names
         num_maps = len(source_layers_names)
+        
+        # take parameters from model definition if they exist there
         if aspect_ratios is None:
             if hasattr(model, 'aspect_ratios'):
                 aspect_ratios = model.aspect_ratios
@@ -314,6 +321,12 @@ class PriorUtil(object):
                 max_ratio = 100 # 90
                 s = np.linspace(min_ratio, max_ratio, num_maps+1) * min_dim / 100.
                 minmax_sizes = [(round(s[i]), round(s[i+1])) for i in range(len(s)-1)]
+        if scale is None:
+            if hasattr(model, 'scale'):
+                scale = model.scale
+            else:
+                scale = 1.0
+        minmax_sizes = np.array(minmax_sizes) * scale
         if steps is None:
             if hasattr(model, 'steps'):
                 steps = model.steps
@@ -401,13 +414,15 @@ class PriorUtil(object):
         
     def encode(self, gt_data, overlap_threshold=0.5, debug=False):
         # calculation is done with normalized sizes
-
-        gt_boxes = self.gt_boxes = np.copy(gt_data[:,:4]) # normalized xmin, ymin, xmax, ymax
-        gt_labels = self.gt_labels = np.copy(gt_data[:,4:]) # one_hot classes including background
-
+        
+        num_classes = self.model.num_classes
         num_priors = self.priors.shape[0]
-        num_classes = gt_labels.shape[1]
-
+        
+        gt_boxes = self.gt_boxes = np.copy(gt_data[:,:4]) # normalized xmin, ymin, xmax, ymax
+        gt_class_idx = np.copy(gt_data[:,-1])
+        gt_one_hot = np.zeros([len(gt_class_idx),num_classes])
+        gt_one_hot[:,gt_class_idx] = 1 # one_hot classes including background
+        
         # TODO: empty ground truth
         if gt_data.shape[0] == 0:
             print('gt_data', type(gt_data), gt_data.shape)
@@ -425,7 +440,7 @@ class PriorUtil(object):
         # prior labels
         confidence = np.zeros((num_priors, num_classes))
         confidence[:,0] = 1
-        confidence[prior_mask] = gt_labels[match_indices]
+        confidence[prior_mask] = gt_one_hot[match_indices]
 
         # compute local offsets from ground truth boxes
         gt_xy = (gt_boxes[:,2:4] + gt_boxes[:,0:2]) / 2.
@@ -518,8 +533,8 @@ class PriorUtil(object):
     def show_image(self, img):
         """Resizes an image to the network input size and shows it in the current figure.
         """
-        img_h, img_w = self.image_size
-        img = cv2.resize(img, (img_w, img_h), cv2.INTER_LINEAR)
+        image_size = self.image_size # width, hight
+        img = cv2.resize(img, image_size, cv2.INTER_LINEAR)
         img = img[:, :, (2,1,0)] # BGR to RGB
         img = img / 256.
         plt.imshow(img)
@@ -527,12 +542,12 @@ class PriorUtil(object):
     def plot_assignement(self, map_idx):
         ax = plt.gca()
         im = plt.gci()
-        image_height, image_width = image_size = im.get_size()
+        img_h, img_w = image_size = im.get_size()
         
         # ground truth
         boxes = self.gt_boxes
-        boxes_x = (boxes[:,0] + boxes[:,2]) / 2. * image_height
-        boxes_y = (boxes[:,1] + boxes[:,3]) / 2. * image_width
+        boxes_x = (boxes[:,0] + boxes[:,2]) / 2. * img_h
+        boxes_y = (boxes[:,1] + boxes[:,3]) / 2. * img_w
         for box in boxes:
             xy_rec = to_rec(box[:4], image_size)
             ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor='b', linewidth=2))
@@ -657,5 +672,6 @@ def calc_memory_usage(model, batch_size=1):
             total_memory /= 1024
         else:
             break
-    print('model memory usage %.2f %s' % (total_memory, s))
+    print('model memory usage %8.2f %s' % (total_memory, s))
+
 

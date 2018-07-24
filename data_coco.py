@@ -72,9 +72,10 @@ class GTUtility(BaseGTUtility):
                 box[2] /= img_width
                 box[3] /= img_height
                 class_idx = class_map[annotation['category_id']]
-                class_one_hot = [0] * num_classes
-                class_one_hot[class_idx] = 1
-                box = box + class_one_hot
+                #class_one_hot = [0] * num_classes
+                #class_one_hot[class_idx] = 1
+                #box = box + class_one_hot
+                box = box + [class_idx]
                 boxes.append(box)
             if len(boxes) == 0:
                 #print(image_name)

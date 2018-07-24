@@ -41,12 +41,11 @@ class GTUtility(BaseGTUtility):
                 y1 = float(box_tree.attrib['y'])
                 x2 = x1 + float(box_tree.attrib['width'])
                 y2 = y1 + float(box_tree.attrib['height'])
-                box = [x1, y1, x2, y2]
+                box = [x1, y1, x2, y2, 1]
                 box[0] /= img_width
                 box[1] /= img_height
                 box[2] /= img_width
                 box[3] /= img_height
-                box = box + [0, 1]
                 boxes.append(box)
                 text.append(box_tree.find('tag').text)
             boxes = np.asarray(boxes)

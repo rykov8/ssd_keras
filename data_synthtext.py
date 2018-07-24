@@ -83,7 +83,7 @@ class GTUtility(BaseGTUtility):
             
             # only boxes with slope below max_slope
             if not max_slope == None:
-                angles = np.arctan(np.divide(boxes[:,2]-boxes[:,0],boxes[:,3]-boxes[:,1]))
+                angles = np.arctan(np.divide(boxes[:,2]-boxes[:,0], boxes[:,3]-boxes[:,1]))
                 angles[angles < 0] += np.pi
                 angles = angles/np.pi*180-90
                 boxes = boxes[np.abs(angles) < max_slope]
@@ -100,9 +100,7 @@ class GTUtility(BaseGTUtility):
                 boxes = np.array([xmin, ymin, xmax, ymax]).T
             
             # append classes
-            class_one_hot = np.zeros((boxes.shape[0], len(self.classes)))
-            class_one_hot[:,1] = 1
-            boxes = np.concatenate([boxes, class_one_hot], axis=1)
+            boxes = np.concatenate([boxes, np.ones([boxes.shape[0],1])], axis=1)
             self.image_names.append(image_name)
             self.data.append(boxes)
             self.text.append(text)

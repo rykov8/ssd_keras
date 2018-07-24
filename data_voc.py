@@ -35,14 +35,13 @@ class GTUtility(BaseGTUtility):
             image_name = root.find('filename').text
             for object_tree in root.findall('object'):
                 class_name = object_tree.find('name').text
-                class_one_hot = [0] * len(self.classes)
-                class_one_hot[classes_lower.index(class_name)] = 1
+                class_idx = classes_lower.index(class_name)
                 for box in object_tree.iter('bndbox'):
                     xmin = float(box.find('xmin').text) / img_width
                     ymin = float(box.find('ymin').text) / img_height
                     xmax = float(box.find('xmax').text) / img_width
                     ymax = float(box.find('ymax').text) / img_height
-                    box = [xmin, ymin, xmax, ymax] + class_one_hot
+                    box = [xmin, ymin, xmax, ymax, class_idx]
                     boxes.append(box)
             boxes = np.asarray(boxes)
             self.image_names.append(image_name)
