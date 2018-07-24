@@ -12,6 +12,7 @@ from keras.layers import Reshape
 
 from ssd_model import ssd512_body
 from ssd_model_dense import dsod512_body, ssd384x512_dense_body
+from ssd_model_resnet import ssd512_resnet_body
 from ssd_layers import Normalize
 
 
@@ -171,4 +172,24 @@ def SL384x512_dense(input_shape=(384,512,3), activation='relu'):
     return model
 
 
-
+def SL512_resnet(input_shape=(512, 512, 3), activation='relu', softmax=True):
+    
+    # TODO: it does not converge!
+    
+    K.clear_session()
+    
+    # DSOD body
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = ssd512_resnet_body(x, activation=activation)
+    
+    # Add multibox head for classification and regression
+    num_priors = [1, 1, 1, 1, 1, 1, 1]
+    normalizations = [20, 20, 20, 20, 20, 20, 20]
+    output_tensor = multibox_head(source_layers, num_priors, normalizations, softmax)
+    model = Model(input_tensor, output_tensor)
+    
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    
+    return model

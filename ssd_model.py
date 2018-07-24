@@ -13,6 +13,8 @@ from keras.layers import ZeroPadding2D
 from keras.models import Model
 
 from ssd_layers import Normalize
+from ssd_model_dense import dsod300_body, dsod512_body
+from ssd_model_resnet import ssd512_resnet_body
 
 
 def ssd300_body(x):
@@ -295,10 +297,6 @@ def SSD512(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     return model
 
 
-
-from ssd_model_dense import dsod300_body, dsod512_body
-
-
 def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu', softmax=True):
     """DSOD, DenseNet based SSD300 architecture.
 
@@ -331,6 +329,8 @@ def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu', softma
     model.steps = [8, 16, 32, 64, 100, 300]
 
     return model
+
+SSD300_dense = DSOD300
 
 
 def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu', softmax=True):
@@ -366,7 +366,31 @@ def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu', softma
 
     return model
 
-SSD300_dense = DSOD300
 SSD512_dense = DSOD512
 
 
+def SSD512_resnet(input_shape=(512, 512, 3), num_classes=21, softmax=True):
+    
+    # TODO: it does not converge!
+
+    K.clear_session()
+    
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = ssd512_resnet_body(x)
+    
+    # Add multibox head for classification and regression
+    num_priors = [4, 6, 6, 6, 6, 4, 4]
+    normalizations = [20, 20, 20, 20, 20, 20, 20]
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
+    model = Model(input_tensor, output_tensor)
+    model.num_classes = num_classes
+
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    # stay compatible with caffe models
+    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
+    model.steps = [8, 16, 32, 64, 128, 256, 512]
+    
+    return model
