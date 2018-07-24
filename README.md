@@ -15,6 +15,9 @@ DSOD is a modification of SSD that uses DenseNet as backbone architecture and th
 ### Detecting Oriented Text in Natural Images by Linking Segments [arXiv:1703.06520](https://arxiv.org/abs/1703.06520)
 SegLink builds on SSD and detects oriented text by local predictions of text segments (objects in SSD) and there linking with each other. The segments (edges) and links (vertices) are considered as graph and thresholded by confidence. The remaining groups are finally combined to bounding boxes.
 
+### TextBoxes++: A Single-Shot Oriented Scene Text Detector [arXiv:1801.02765](https://arxiv.org/abs/1801.02765)
+TextBoxes++ extends TextBoxes for arbitrary oriented text by predicting horizontal bounding boxes as well as quadrilaterals and oriented bounding boxes. It additionally uses the recognition score to eliminate false positives from the detection stage (currently not implemented).
+
 ### Focal Loss for Dense Object Detection [arXiv:1708.02002](https://arxiv.org/abs/1708.02002)
 The focal loss is dynamically weighted version of the cross-entropy loss that can better handle a large imbalance between the classes in the training set. It can be applied to all the detectors above, instead of hard negative mining, to overcome the dominance of the background class.
 
