@@ -2,13 +2,13 @@
 
 import keras.backend as K
 from keras.models import Model
-from keras.layers import Input, Dense, Activation, Conv2D, MaxPool2D, BatchNormalization, GRU
+from keras.layers import Input, Dense, Activation, Conv2D, MaxPool2D, BatchNormalization, LSTM, GRU
 from keras.layers.wrappers import Bidirectional
 from keras.layers import Reshape, Permute, Lambda
 from keras.layers.advanced_activations import LeakyReLU
 
 
-def CRNN(input_shape, num_classes, prediction_only=False):
+def CRNN(input_shape, num_classes, prediction_only=False, gru=True):
     """CRNN architecture.
     
     # Arguments
@@ -38,8 +38,12 @@ def CRNN(input_shape, num_classes, prediction_only=False):
     x = MaxPool2D(pool_size=(2, 2), strides=(1, 2), name='pool5', padding='valid')(x)
     x = Conv2D(512, (2, 2), strides=(1, 1), activation=act, padding='valid', name='conv6_1')(x)
     x = Reshape((-1,512))(x)
-    x = Bidirectional(GRU(256, return_sequences=True))(x)
-    x = Bidirectional(GRU(256, return_sequences=True))(x)
+    if gru:
+        x = Bidirectional(GRU(256, return_sequences=True))(x)
+        x = Bidirectional(GRU(256, return_sequences=True))(x)
+    else:
+        x = Bidirectional(LSTM(256, return_sequences=True))(x)
+        x = Bidirectional(LSTM(256, return_sequences=True))(x)
     x = Dense(num_classes, name='dense1')(x)
     x = y_pred = Activation('softmax', name='softmax')(x)
     

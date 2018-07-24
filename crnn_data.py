@@ -68,6 +68,7 @@ def crop_words(img, boxes, height, width=None, grayscale=True):
 
 
 class InputGenerator(object):
+    """Model input generator for cropping bounding boxes."""
     def __init__(self, gt_util_train, gt_util_val, batch_size, alphabet,
                 grayscale=True, input_size=(255,32), max_string_len=30):
         
@@ -99,7 +100,7 @@ class InputGenerator(object):
             while len(targets) < batch_size:
                 if i == gt_util.num_samples:
                     idxs = np.arange(gt_util.num_samples)
-                    #np.random.seed(1337)
+                    np.random.seed(1337)
                     np.random.shuffle(idxs)
                     i = 0
                     print('NEW epoch')
@@ -117,15 +118,23 @@ class InputGenerator(object):
                 texts = np.copy(gt_util.text[idx])
                 
                 # drop boxes with vertices outside the image
-                mask = np.array([not (np.any(b < 0) or np.any(b > 0)) for b in boxes])
+                mask = np.array([not (np.any(b < 0.) or np.any(b > 1.)) for b in boxes])
                 boxes = boxes[mask]
                 texts = texts[mask]
                 
-                words = crop_words(img, boxes, height, width, self.grayscale)
+                if len(boxes) == 0: continue
                 
-                # drop words with width < height here
-                mask = np.array([w.shape[0] > w.shape[1] for w in words])
-                words = words[mask]
+                try:
+                    words = crop_words(img, boxes, height, width, self.grayscale)
+                except Exception as e:
+                    import traceback
+                    print(traceback.format_exc())
+                    print(img_path)
+                    continue
+                
+                # drop words with width > height here
+                mask = np.array([w.shape[1] > w.shape[0] for w in words])
+                words = np.asarray(words)[mask]
                 texts = texts[mask]
                 
                 inputs.extend(words)
@@ -159,13 +168,12 @@ class InputGenerator(object):
             inputs_dict = {
                 'image_input': images,
                 'label_input': labels,
-                'input_length': input_length, # used for ctc
-                'label_length': label_length, # used for ctc
+                'input_length': input_length, # used by ctc
+                'label_length': label_length, # used by ctc
                 'source_str': source_str, # used for visualization only
             }
             outputs_dict = {'ctc': np.zeros([batch_size])}  # dummy
             yield inputs_dict, outputs_dict
             
-
             inputs = inputs[batch_size:]
             targets = targets[batch_size:]
