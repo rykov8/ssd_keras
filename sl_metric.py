@@ -1,19 +1,20 @@
 import numpy as np
 import pyclipper
-#import shapely
+#from shapely import geometry
 
 from sl_utils import rbox_to_polygon, polygon_to_rbox
 
 from ssd_metric import fscore
 
-def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_thresh=0.5):
-    """Evaluate polynomial text detection results and return TP, FP, FN.
+
+def evaluate_polygonal_results(ground_truth, detection_results, iou_thresh=0.5):
+    """Evaluate polygonal text detection results and return TP, FP, FN.
     
     # Arguments
-        ground_truth: List of ground truth data with 
-            shape (objects, 4 x xy + 2 x class)
-        detection_results: List of corresponding detection Results with 
-            shape (objects, 4 x xy + confidence + label)
+        ground_truth: List of ground truth polygonal with
+            shape (objects, 4 x xy)
+        detection_results: List of corresponding detection polygonal with 
+            shape (objects, 4 x xy)
         image_size: Input size of detector network.
         iou_thresh: Minimum intersection over union required to associate
             a detected polygon box to a ground truth polygon box.
@@ -38,20 +39,17 @@ def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_
     num_detections = 0
     
     for i in range(len(gt)): # samples
-        #plt.figure()
-        #plt.imshow(images[i])
+        gt_polys = [np.reshape(gt[i][j,:], (-1, 2)) for j in range(len(gt[i]))]
+        dt_polys = [np.reshape(dt[i][j,:], (-1, 2)) for j in range(len(dt[i]))]
         
-        gt_polys = [np.reshape(gt[i][j,:8], (-1, 2)) * image_size for j in range(len(gt[i]))]
-        dt_polys = [rbox_to_polygon(dt[i][k][:5]) for k in range(len(dt[i]))]
-        
-        # prepare polygones, pyclipper
+        # prepare polygones, pyclipper, is much faster
         scale = 1e5
         gt_polys = [np.asarray(p*scale, dtype=np.int64) for p in gt_polys]
         dt_polys = [np.asarray(p*scale, dtype=np.int64) for p in dt_polys]
         
         # perpare polygones, shapely
-        #gt_polys = [shapely.geometry.Polygon(p) for p in gt_polys]
-        #dt_polys = [shapely.geometry.Polygon(p) for p in dt_polys]
+        #gt_polys = [geometry.Polygon(p) for p in gt_polys]
+        #dt_polys = [geometry.Polygon(p) for p in dt_polys]
         
         num_dt = len(dt_polys)
         num_gt = len(gt_polys)
@@ -84,10 +82,10 @@ def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_
                     IoU = 0.0
                 
                 # intersection over union, shapely, much slower
-                #I = b1.intersection(b2)
+                #I = poly1.intersection(poly2)
                 #if not I.is_empty:
                 #    Ia = I.area
-                #    Ua = b1.area + b2.area - Ia
+                #    Ua = poly1.area + poly2.area - Ia
                 #    IoU = Ia / Ua
                 #else:
                 #    IoU =  0.0
@@ -111,8 +109,6 @@ def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_
         FP.append(FP_img)
         FN_sum += FN_img_sum
         
-        #plt.show()
-        
     TP = np.concatenate(TP)
     FP = np.concatenate(FP)
     
@@ -122,7 +118,14 @@ def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_
     return TP_sum, FP_sum, FN_sum
     
     recall = TP_sum / (TP_sum+FN_sum)
-    precision  = TP_sum / (TP_sum+FP_sum)
+    precision = TP_sum / (TP_sum+FP_sum)
     print('TP %i FP %i FN %i' % (TP_sum, FP_sum, FN_sum))
     print('precision, recall, f-measure: %.2f, %.2f, %.2f' % (precision, recall, fscore(precision, recall)))
 
+
+def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_thresh=0.5):
+    
+    ground_truth = [g[:,0:8] * np.repeat(image_size, 4) for g in ground_truth]
+    detection_results = [np.array([rbox_to_polygon(dd[:5]) for dd in d]) for d in detection_results]
+    
+    return evaluate_polygonal_results(ground_truth, detection_results, iou_thresh)

@@ -9,11 +9,12 @@ from ssd_training import compute_metrics
 
 class SegLinkLoss(object):
 
-    def __init__(self, lambda_segments=1.0, lambda_offsets=1.0, lambda_links=1.0, neg_pos_ratio=3.0):
+    def __init__(self, lambda_segments=1.0, lambda_offsets=1.0, lambda_links=1.0, neg_pos_ratio=3.0, first_map_size=(64,64)):
         self.lambda_segments = lambda_segments
         self.lambda_offsets = lambda_offsets
         self.lambda_links = lambda_links
         self.neg_pos_ratio = neg_pos_ratio
+        self.first_map_offset = first_map_size[0] * first_map_size[1] # TODO get it from model object
         self.metrics = []
     
     def compute(self, y_true, y_pred):
@@ -21,7 +22,6 @@ class SegLinkLoss(object):
         # TODO: negatives_for_hard?
         #       mask based on y_true or y_pred?
         
-        offset = 64*64 # depends on first map_size
         batch_size = tf.shape(y_true)[0]
         eps = K.epsilon()
         
@@ -71,11 +71,11 @@ class SegLinkLoss(object):
         
         # link confidence loss
         inter_link_conf_true = y_true[:,:,7:23]
-        cross_link_conf_true = y_true[:,offset:,23:31]
+        cross_link_conf_true = y_true[:,self.first_map_offset:,23:31]
         link_conf_true = tf.concat([tf.reshape(inter_link_conf_true, [-1, 2]), 
                                     tf.reshape(cross_link_conf_true, [-1, 2])], 0)
         inter_link_conf_pred = y_pred[:,:,7:23]
-        cross_link_conf_pred = y_pred[:,offset:,23:31]
+        cross_link_conf_pred = y_pred[:,self.first_map_offset:,23:31]
         link_conf_pred = tf.concat([tf.reshape(inter_link_conf_pred, [-1, 2]), 
                                     tf.reshape(cross_link_conf_pred, [-1, 2])], 0)
         
@@ -117,12 +117,12 @@ class SegLinkLoss(object):
         seg_conf = tf.reduce_max(seg_conf_pred, axis=1)
         seg_class_true = tf.argmax(seg_conf_true, axis=1)
         seg_class_pred = tf.argmax(seg_conf_pred, axis=1)
-        seg_precision, seg_recall, seg_accuracy, seg_fmeasure = compute_metrics(seg_class_true, seg_class_pred, seg_conf)
+        seg_precision, seg_recall, seg_accuracy, seg_fmeasure = compute_metrics(seg_class_true, seg_class_pred, seg_conf, top_k=100*batch_size)
         
         link_conf = tf.reduce_max(link_conf_pred, axis=1)
         link_class_true = tf.argmax(link_conf_true, axis=1)
         link_class_pred = tf.argmax(link_conf_pred, axis=1)
-        link_precision, link_recall, link_accuracy, link_fmeasure = compute_metrics(link_class_true, link_class_pred, link_conf)
+        link_precision, link_recall, link_accuracy, link_fmeasure = compute_metrics(link_class_true, link_class_pred, link_conf, top_k=100*batch_size)
         
         # metrics
         pos_seg_conf_loss = pos_seg_conf_loss / (num_pos_seg + eps)
@@ -132,13 +132,14 @@ class SegLinkLoss(object):
         
         def make_fcn(t):
             return lambda y_true, y_pred: t
-        for name in ['num_pos_seg', 
-                     'num_neg_seg', 
-                     'pos_seg_conf_loss', 
+        for name in ['pos_seg_conf_loss', 
                      'neg_seg_conf_loss', 
                      'seg_loc_loss', 
                      'pos_link_conf_loss', 
                      'neg_link_conf_loss',
+                     
+                     'num_pos_seg', 
+                     'num_neg_seg', 
                      
                      'seg_precision', 
                      'seg_recall', 
@@ -158,29 +159,30 @@ class SegLinkLoss(object):
 
 class SegLinkFocalLoss(object):
 
-    def __init__(self, lambda_segments=100.0, lambda_offsets=1.0, lambda_links=100.0, gamma_segments=2, gamma_links=2):
+    def __init__(self, lambda_segments=100.0, lambda_offsets=1.0, lambda_links=100.0, gamma_segments=2, gamma_links=2, first_map_size=(64,64)):
         self.lambda_segments = lambda_segments
         self.lambda_offsets = lambda_offsets
         self.lambda_links = lambda_links
         self.gamma_segments = gamma_segments
         self.gamma_links = gamma_links
+        self.first_map_offset = first_map_size[0] * first_map_size[1] # TODO get it from model object
         self.metrics = []
     
     def compute(self, y_true, y_pred):
         # y.shape (batches, segments, 2 x segment_label + 5 x segment_offset + 16 x inter_layer_links_label + 8 x cross_layer_links_label)
         
-        offset = 64*64 # depends on first map_size
         batch_size = tf.shape(y_true)[0]
         eps = K.epsilon()
         
         # segment confidence loss
         seg_conf_true = tf.reshape(y_true[:,:,0:2], [-1, 2])
         seg_conf_pred = tf.reshape(y_pred[:,:,0:2], [-1, 2])
-        num_seg = tf.shape(seg_conf_true)[0]
+        num_seg = tf.cast(tf.shape(seg_conf_true)[0], tf.float32)
         
         pos_seg_mask = seg_conf_true[:,1]
         pos_seg_mask_float = tf.cast(pos_seg_mask, tf.float32)
         num_pos_seg = tf.reduce_sum(pos_seg_mask_float)
+        num_neg_seg = num_seg - num_pos_seg
         
         seg_conf_loss = focal_loss(seg_conf_true, seg_conf_pred, self.gamma_segments)
         seg_conf_loss = tf.reduce_sum(seg_conf_loss)
@@ -199,11 +201,11 @@ class SegLinkFocalLoss(object):
         
         # link confidence loss
         inter_link_conf_true = y_true[:,:,7:23]
-        cross_link_conf_true = y_true[:,offset:,23:31]
+        cross_link_conf_true = y_true[:,self.first_map_offset:,23:31]
         link_conf_true = tf.concat([tf.reshape(inter_link_conf_true, [-1, 2]), 
                                     tf.reshape(cross_link_conf_true, [-1, 2])], 0)
         inter_link_conf_pred = y_pred[:,:,7:23]
-        cross_link_conf_pred = y_pred[:,offset:,23:31]
+        cross_link_conf_pred = y_pred[:,self.first_map_offset:,23:31]
         link_conf_pred = tf.concat([tf.reshape(inter_link_conf_pred, [-1, 2]), 
                                     tf.reshape(cross_link_conf_pred, [-1, 2])], 0)
         num_link = tf.shape(link_conf_true)[0]
@@ -220,12 +222,12 @@ class SegLinkFocalLoss(object):
         seg_conf = tf.reduce_max(seg_conf_pred, axis=1)
         seg_class_true = tf.argmax(seg_conf_true, axis=1)
         seg_class_pred = tf.argmax(seg_conf_pred, axis=1)
-        seg_precision, seg_recall, seg_accuracy, seg_fmeasure = compute_metrics(seg_class_true, seg_class_pred, seg_conf)
+        seg_precision, seg_recall, seg_accuracy, seg_fmeasure = compute_metrics(seg_class_true, seg_class_pred, seg_conf, top_k=100*batch_size)
         
         link_conf = tf.reduce_max(link_conf_pred, axis=1)
         link_class_true = tf.argmax(link_conf_true, axis=1)
         link_class_pred = tf.argmax(link_conf_pred, axis=1)
-        link_precision, link_recall, link_accuracy, link_fmeasure = compute_metrics(link_class_true, link_class_pred, link_conf)
+        link_precision, link_recall, link_accuracy, link_fmeasure = compute_metrics(link_class_true, link_class_pred, link_conf, top_k=100*batch_size)
         
         # metrics
         def make_fcn(t):
@@ -233,6 +235,9 @@ class SegLinkFocalLoss(object):
         for name in ['seg_conf_loss', 
                      'seg_loc_loss', 
                      'link_conf_loss', 
+                     
+                     'num_pos_seg',
+                     'num_neg_seg',
                      
                      'seg_precision', 
                      'seg_recall', 
