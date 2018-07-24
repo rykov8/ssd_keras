@@ -170,3 +170,53 @@ def dsod512_body(x, activation='relu'):
     
     return source_layers
 
+
+def ssd384x512_dense_body(x, activation='relu'):
+    # used for SegLink
+    
+    if activation == 'leaky_relu':
+        activation = leaky_relu
+    
+    # Stem
+    x = Conv2D(64, 3, strides=2, padding='same')(x)
+    x = BatchNormalization(scale=True)(x)
+    x = Activation(activation)(x)
+    x = Conv2D(64, 3, strides=1, padding='same')(x)
+    x = BatchNormalization(scale=True)(x)
+    x = Activation(activation)(x)
+    x = Conv2D(96, 3, strides=1, padding='same')(x)
+    x = BatchNormalization(scale=True)(x)
+    x = Activation(activation)(x)
+    x = MaxPooling2D(pool_size=2, strides=2)(x)
+    
+    num_channels = 128
+    growth_rate = 32
+    source_layers = []
+    
+    for i in range(6):
+        x = bl_layer1(x, growth_rate, 4)
+        num_channels += growth_rate
+    x = bn_acti_conv(x, num_channels, activation=activation)
+    
+    for i in range(8):
+        x = bl_layer1(x, growth_rate, 4)
+        num_channels += growth_rate
+    x = bn_acti_conv(x, num_channels, activation=activation)
+    source_layers.append(x)
+    
+    x = bl_layer2(x, 320, 1, activation=activation)
+    source_layers.append(x)
+
+    x = bl_layer2(x, 256, 1, activation=activation)
+    source_layers.append(x)
+
+    x = bl_layer2(x, 192, 1, activation=activation)
+    source_layers.append(x)
+
+    x = bl_layer2(x, 128, 1, activation=activation)
+    source_layers.append(x)
+    
+    x = bl_layer2(x, 64, 1, activation=activation)
+    source_layers.append(x)
+    
+    return source_layers

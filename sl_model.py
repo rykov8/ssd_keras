@@ -1,24 +1,24 @@
 """Keras implementation of SegLink."""
 
 import keras.backend as K
+from keras.models import Model
 from keras.layers import Activation
 from keras.layers import Conv2D
 from keras.layers import Dense
 from keras.layers import Flatten
-from keras.layers import GlobalAveragePooling2D
 from keras.layers import Input
-from keras.layers import MaxPooling2D
 from keras.layers import concatenate
 from keras.layers import Reshape
-from keras.layers import ZeroPadding2D
-from keras.models import Model
 
 from ssd_model import ssd512_body
-from dsod_model import dsod512_body
+from ssd_model_dense import dsod512_body, ssd384x512_dense_body
 from ssd_layers import Normalize
 
 
-def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
+def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
+    
+    num_classes = 2
+    class_activation = 'softmax' if softmax else 'sigmoid'
     
     mbox_conf = []
     mbox_loc = []
@@ -59,27 +59,27 @@ def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
 
     mbox_conf = concatenate(mbox_conf, axis=1, name='mbox_conf')
     mbox_conf = Reshape((-1, num_classes), name='mbox_conf_logits')(mbox_conf)
-    mbox_conf = Activation('softmax', name='mbox_conf_final')(mbox_conf)
+    mbox_conf = Activation(class_activation, name='mbox_conf_final')(mbox_conf)
     
     mbox_loc = concatenate(mbox_loc, axis=1, name='mbox_loc')
     mbox_loc = Reshape((-1, 5), name='mbox_loc_final')(mbox_loc)
 
     #link_interlayer_conf = concatenate(link_interlayer_conf, axis=1, name='link_interlayer_conf')
     #link_interlayer_conf = Reshape((-1, num_classes * 8), name='link_interlayer_conf_logits')(link_interlayer_conf)
-    #link_interlayer_conf = Activation('softmax', name='link_interlayer_conf_final')(link_interlayer_conf)
+    #link_interlayer_conf = Activation(class_activation, name='link_interlayer_conf_final')(link_interlayer_conf)
     
     #link_crosslayer_conf = concatenate(link_crosslayer_conf, axis=1, name='link_crosslayer_conf')
     #link_crosslayer_conf = Reshape((-1, num_classes * 4), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
-    #link_crosslayer_conf = Activation('softmax', name='link_crosslayer_conf_final')(link_crosslayer_conf)
+    #link_crosslayer_conf = Activation(class_activation, name='link_crosslayer_conf_final')(link_crosslayer_conf)
     
     link_interlayer_conf = concatenate(link_interlayer_conf, axis=1, name='link_interlayer_conf')
     link_interlayer_conf = Reshape((-1, num_classes), name='link_interlayer_conf_logits')(link_interlayer_conf)
-    link_interlayer_conf = Activation('softmax', name='link_interlayer_conf_softmax')(link_interlayer_conf)
+    link_interlayer_conf = Activation(class_activation, name='link_interlayer_conf_softmax')(link_interlayer_conf)
     link_interlayer_conf = Reshape((-1, num_classes * 8), name='link_interlayer_conf_final')(link_interlayer_conf)
     
     link_crosslayer_conf = concatenate(link_crosslayer_conf, axis=1, name='link_crosslayer_conf')
     link_crosslayer_conf = Reshape((-1, num_classes), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
-    link_crosslayer_conf = Activation('softmax', name='link_crosslayer_conf_softmax')(link_crosslayer_conf)
+    link_crosslayer_conf = Activation(class_activation, name='link_crosslayer_conf_softmax')(link_crosslayer_conf)
     link_crosslayer_conf = Reshape((-1, num_classes * 4), name='link_crosslayer_conf_final')(link_crosslayer_conf)
     
     predictions = concatenate([
@@ -92,16 +92,16 @@ def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
     return predictions
 
 
-def SL512(input_shape=(512, 512, 3), num_classes=2):
+def SL512(input_shape=(512, 512, 3), softmax=True):
     """SegLink512 architecture.
 
     # Arguments
         input_shape: Shape of the input image.
-        num_classes: Number of classes including background.
 
     # References
         https://arxiv.org/abs/1703.06520
     """
+    
     K.clear_session()
     
     # SSD body
@@ -111,18 +111,26 @@ def SL512(input_shape=(512, 512, 3), num_classes=2):
     # Add multibox head for classification and regression
     num_priors = [1, 1, 1, 1, 1, 1, 1]
     normalizations = [20, -1, -1, -1, -1, -1, -1]
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    output_tensor = multibox_head(source_layers, num_priors, normalizations, softmax)
     model = Model(input_tensor, output_tensor)
-
+    
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.source_layers_names = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2', 'conv10_2']
     
     return model
 
 
-def DSODSL512(input_shape=(512, 512, 3), num_classes=2, activation='relu'):
+def DSODSL512(input_shape=(512, 512, 3), activation='relu', softmax=True):
+    """DenseNet based Architecture for SegLink512.
+    
+    # Arguments
+        input_shape: Shape of the input image.
+
+    # References
+        https://arxiv.org/abs/1708.01241
+    """
+    
     K.clear_session()
     
     # DSOD body
@@ -132,13 +140,35 @@ def DSODSL512(input_shape=(512, 512, 3), num_classes=2, activation='relu'):
     # Add multibox head for classification and regression
     num_priors = [1, 1, 1, 1, 1, 1, 1]
     normalizations = [20, -1, -1, -1, -1, -1, -1]
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    output_tensor = multibox_head(source_layers, num_priors, normalizations, softmax)
     model = Model(input_tensor, output_tensor)
-
+    
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.source_layers_names = [l.name.split('/')[0] for l in source_layers]
     
     return model
+
+
+def SL384x512_dense(input_shape=(384,512,3), activation='relu'):
+    
+    K.clear_session()
+    
+    # body
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = ssd384x512_dense_body(x, activation=activation)
+    
+    # Add multibox head for classification and regression
+    num_priors = [1, 1, 1, 1, 1, 1]
+    normalizations = [20, 20, 20, 20, 20, 20]
+    output_tensor = multibox_head(source_layers, num_priors, normalizations)
+    model = Model(input_tensor, output_tensor)
+    
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    
+    return model
+
+
 
