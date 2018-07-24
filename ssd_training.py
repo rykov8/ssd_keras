@@ -8,7 +8,6 @@ import json
 import time
 
 from keras.callbacks import Callback
-from math import log10, floor, ceil
 
 
 def smooth_l1_loss(y_true, y_pred):
@@ -48,7 +47,7 @@ def softmax_loss(y_true, y_pred):
     softmax_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
     return softmax_loss
 
-def focal_loss(y_true, y_pred, gamma=2):
+def focal_loss(y_true, y_pred, gamma=2, alpha=0.25):
     """Compute focal loss.
     
     # Arguments
@@ -63,7 +62,6 @@ def focal_loss(y_true, y_pred, gamma=2):
     # References
         https://arxiv.org/abs/1708.02002
     """
-    alpha = 0.25
     #y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
     eps = K.epsilon()
     y_pred = K.clip(y_pred, eps, 1. - eps)
@@ -210,12 +208,13 @@ class SSDLoss(object):
 
 class SSDFocalLoss(object):
 
-    def __init__(self, alpha=1.0):
-        self.alpha = alpha
+    def __init__(self, lambda_conf=1.0, lambda_offsets=1.0):
+        self.lambda_conf = lambda_conf
+        self.lambda_offsets = lambda_offsets
         self.metrics = []
     
     def compute(self, y_true, y_pred):
-        # y.shape (batches, priors, 4 x segment_offset + n x class_label)
+        # y.shape (batches, priors, 4 x bbox_offset + n x class_label)
         
         batch_size = tf.shape(y_true)[0]
         num_priors = tf.shape(y_true)[1]
@@ -252,7 +251,7 @@ class SSDFocalLoss(object):
         loc_loss = pos_loc_loss / (num_pos + eps)
         
         # total loss
-        total_loss = conf_loss + self.alpha * loc_loss
+        total_loss = slef.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
         
         # metrics
         precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
@@ -337,6 +336,32 @@ class LearningRateDecay(Callback):
         plt.show()
 
 
+class ModelSnapshot(Callback):
+    """Save the model weights after an interval of iterations."""
+    
+    def __init__(self, logdir, interval=10000, verbose=1):
+        super(ModelSnapshot, self).__init__()
+        self.logdir = logdir
+        self.interval = interval
+        self.verbose = verbose
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch = epoch
+    
+    def on_batch_begin(self, batch, logs=None):
+        self.batch = batch
+        # steps/batches/iterations
+        steps_per_epoch = self.params['steps']
+        self.iteration = self.epoch * steps_per_epoch + batch + 1
+        
+    def on_batch_end(self, batch, logs=None):
+        if self.iteration % self.interval == 0:
+            filepath = self.logdir + '/weights.%06i.h5' % (self.iteration)
+            if self.verbose > 0:
+                print('\nSaving model %s' % (filepath))
+            self.model.save_weights(filepath, overwrite=True)
+
+
 class Logger(Callback):
     
     def __init__(self, logdir):
@@ -381,6 +406,8 @@ class Logger(Callback):
 
 def plot_log(log_file, names=None, limits=None, window_length=250, log_file_compare=None):
     
+    # TODO: print name of both files, length, compare history
+    
     def load_log(log_file):
         with open(log_file,'r') as f:
             data = f.readlines()
@@ -415,11 +442,14 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
         if epoch[i] != epoch[i-1]:
             idx.append(i)
     
+    if 'time' in d.keys() and len(idx) > 1:
+        print('time per epoch %3.1f h' % ((d['time'][idx[1]]-d['time'][idx[0]])/3600))
+    
     # reduce epoch ticks
     max_ticks = 20
     n = len(idx)
     if n > 1:
-        n = round(n,-1*floor(log10(n)))
+        n = round(n,-1*int(np.floor(np.log10(n))))
         while n >= max_ticks:
             if n/2 < max_ticks:
                 n /= 2
@@ -428,7 +458,7 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
                     n /= 5
                 else:
                     n /= 10
-        idx_step = ceil(len(idx)/n)
+        idx_step = int(np.ceil(len(idx)/n))
         epoch_step = epoch[idx[idx_step]] - epoch[idx[0]]
         for first_idx in range(len(idx)):
             if epoch[idx[first_idx]] % epoch_step == 0:
@@ -447,6 +477,7 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
             continue
         plt.figure(figsize=(16, 8))
         plt.plot(iteration, d[k], zorder=0)
+        plt.title(k, y=1.05)
         
         # filter signal
         if window_length and len(iteration) > window_length:
@@ -462,10 +493,12 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
                 x = d2['iteration'][wh-1:-wh]
                 y = np.convolve(w/w.sum(), d2[k], mode='valid')
                 plt.plot(x, y)
+            xmin = min(d['iteration'][0], d2['iteration'][0])
+            xmax = max(d['iteration'][-1], d2['iteration'][-1])
+        else:
+            xmin = iteration[0]
+            xmax = iteration[-1]
         
-        xmin = iteration[0]
-        xmax = iteration[-1]
-        plt.title(k, y=1.05)
         ax1 = plt.gca()
         ax1.set_xlim(xmin, xmax)
         ax1.yaxis.grid(True)
@@ -481,6 +514,14 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
         #ax2.set_xlabel('epoch')
         #ax2.set_yscale('linear')
         ax2.get_yaxis().get_major_formatter().set_useOffset(False)
+        
+        k_end = k.split('_')[-1]
+        if k_end in ['loss']:
+            ymin = 0
+            ymax = min(np.max(d[k][np.isfinite(d[k])]), np.mean(d[k][np.isfinite(d[k])])*8)
+            ax1.set_ylim(ymin, ymax)
+        if k_end in ['precision', 'recall', 'fmeasure', 'accuracy']:
+            ax1.set_ylim(0, 1)
         
         plt.show()
 
