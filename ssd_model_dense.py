@@ -1,29 +1,17 @@
-"""Keras implementation of SSOD."""
-
 import keras.backend as K
+from keras.models import Model
+from keras.layers import Input
 from keras.layers import Activation
 from keras.layers import Conv2D
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers import GlobalAveragePooling2D
-from keras.layers import Input
 from keras.layers import MaxPooling2D
 from keras.layers import concatenate
-from keras.layers import Reshape
-from keras.layers import ZeroPadding2D
 from keras.layers import BatchNormalization
 from keras.layers import Dropout
-from keras.models import Model
 
-from ssd_layers import Normalize
 from ssd_layers import leaky_relu
-from ssd_model import multibox_head
-
-# keras default inialization is glorot == xavier, use glorot_normal?
-# kernel_initializer='glorot_uniform', bias_initializer='zeros'
 
 
-def bn_acti_conv(x, filters, kernel_size, stride, padding='same', activation='relu'):
+def bn_acti_conv(x, filters, kernel_size=1, stride=1, padding='same', activation='relu'):
     x = BatchNormalization(scale=True)(x)
     x = Activation(activation)(x)
     x = Conv2D(filters, kernel_size, strides=stride, padding=padding)(x)
@@ -92,7 +80,6 @@ def dsod300_body(x, activation='relu'):
         num_channels += growth_rate
 
     x1 = bn_acti_conv(x, 256, 1, 1, activation=activation)
-
     x2 = MaxPooling2D(pool_size=2, strides=2)(source_layers[0])
     x2 = bn_acti_conv(x2, 256, 1, 1, activation=activation)
     x = concatenate([x1, x2], axis=3)
@@ -161,7 +148,6 @@ def dsod512_body(x, activation='relu'):
         num_channels += growth_rate
 
     x1 = bn_acti_conv(x, 256, 1, 1, activation=activation)
-
     x2 = MaxPooling2D(pool_size=2, strides=2)(source_layers[0])
     x2 = bn_acti_conv(x2, 256, 1, 1, activation=activation)
     x = concatenate([x1, x2], axis=3)
@@ -184,50 +170,3 @@ def dsod512_body(x, activation='relu'):
     
     return source_layers
 
-
-def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu'):
-    
-    K.clear_session()
-    
-    x = input_tensor = Input(shape=input_shape)
-    source_layers = dsod300_body(x, activation=activation)
-
-    num_priors = [4, 6, 6, 6, 4, 4]
-    normalizations = [20, 20, 20, 20, 20, 20]
-
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
-    model = Model(input_tensor, output_tensor)
-
-    # parameters for prior boxes
-    model.image_size = input_shape[:2]
-    model.source_layers = source_layers
-    model.source_layers_names = [l.name.split('/')[0] for l in source_layers]
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
-    model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
-    model.steps = [8, 16, 32, 64, 100, 300]
-
-    return model
-
-
-def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu'):
-    
-    K.clear_session()
-    
-    x = input_tensor = Input(shape=input_shape)
-    source_layers = dsod512_body(x, activation=activation)
-
-    num_priors = [4, 6, 6, 6, 6, 4, 4]
-    normalizations = [20, 20, 20, 20, 20, 20, 20]
-
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
-    model = Model(input_tensor, output_tensor)
-
-    # parameters for prior boxes
-    model.image_size = input_shape[:2]
-    model.source_layers = source_layers
-    model.source_layers_names = [l.name.split('/')[0] for l in source_layers]
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
-    model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
-    model.steps = [8, 16, 32, 64, 128, 256, 512]
-
-    return model

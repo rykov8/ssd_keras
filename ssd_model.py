@@ -5,7 +5,6 @@ from keras.layers import Activation
 from keras.layers import Conv2D
 from keras.layers import Dense
 from keras.layers import Flatten
-from keras.layers import GlobalAveragePooling2D
 from keras.layers import Input
 from keras.layers import MaxPool2D
 from keras.layers import concatenate
@@ -151,15 +150,13 @@ def ssd512_body(x):
     # Block 6
     x = Conv2D(256, 1, strides=1, padding='same', name='conv6_1', activation='relu')(x)
     #x = Activation('relu')(x)
-    #x = ZeroPadding2D()(x)
     x = Conv2D(512, 3, strides=2, padding='same', name='conv6_2', activation='relu')(x)
     #x = Activation('relu')(x)
     source_layers.append(x)
     # Block 7
     x = Conv2D(128, 1, strides=1, padding='same', name='conv7_1', activation='relu')(x)
     #x = Activation('relu')(x)
-    x = ZeroPadding2D()(x)
-    x = Conv2D(256, 3, strides=2, padding='valid', name='conv7_2', activation='relu')(x)
+    x = Conv2D(256, 3, strides=2, padding='same', name='conv7_2', activation='relu')(x)
     #x = Activation('relu')(x)
     source_layers.append(x)
     # Block 8
@@ -184,9 +181,10 @@ def ssd512_body(x):
     return source_layers
 
 
-def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
+def multibox_head(source_layers, num_priors, num_classes, normalizations=None, softmax=True):
 
     postfix = '' if num_classes == 21 else '_%i'%num_classes
+    class_activation = 'softmax' if softmax else 'sigmoid'
 
     mbox_conf = []
     mbox_loc = []
@@ -216,14 +214,14 @@ def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
 
     mbox_conf = concatenate(mbox_conf, axis=1, name='mbox_conf')
     mbox_conf = Reshape((-1, num_classes), name='mbox_conf_logits')(mbox_conf)
-    mbox_conf = Activation('softmax', name='mbox_conf_final')(mbox_conf)
-
+    mbox_conf = Activation(class_activation, name='mbox_conf_final')(mbox_conf)
+    
     predictions = concatenate([mbox_loc, mbox_conf], axis=2, name='predictions')
     
     return predictions
 
 
-def SSD300(input_shape=(300, 300, 3), num_classes=21):
+def SSD300(input_shape=(300, 300, 3), num_classes=21, softmax=True):
     """SSD300 architecture.
 
     # Arguments
@@ -245,13 +243,13 @@ def SSD300(input_shape=(300, 300, 3), num_classes=21):
     # Add multibox head for classification and regression
     num_priors = [4, 6, 6, 6, 4, 4]
     normalizations = [20, -1, -1, -1, -1, -1]
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
     model = Model(input_tensor, output_tensor)
+    model.num_classes = num_classes
 
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.source_layers_names = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
     # stay compatible with caffe models
     model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
     model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
@@ -260,7 +258,7 @@ def SSD300(input_shape=(300, 300, 3), num_classes=21):
     return model
 
 
-def SSD512(input_shape=(512, 512, 3), num_classes=21):
+def SSD512(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     """SSD512 architecture.
 
     # Arguments
@@ -282,17 +280,93 @@ def SSD512(input_shape=(512, 512, 3), num_classes=21):
     # Add multibox head for classification and regression
     num_priors = [4, 6, 6, 6, 6, 4, 4]
     normalizations = [20, -1, -1, -1, -1, -1, -1]
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
     model = Model(input_tensor, output_tensor)
+    model.num_classes = num_classes
 
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.source_layers_names = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2', 'conv10_2']
     # stay compatible with caffe models
     model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
     model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
     model.steps = [8, 16, 32, 64, 128, 256, 512]
     
     return model
+
+
+
+from ssd_model_dense import dsod300_body, dsod512_body
+
+
+def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu', softmax=True):
+    """DSOD, DenseNet based SSD300 architecture.
+
+    # Arguments
+        input_shape: Shape of the input image.
+        num_classes: Number of classes including background.
+        activation: Type of activation functions.
+    
+    # References
+        https://arxiv.org/abs/1708.01241
+    """
+    
+    K.clear_session()
+    
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = dsod300_body(x, activation=activation)
+
+    num_priors = [4, 6, 6, 6, 4, 4]
+    normalizations = [20, 20, 20, 20, 20, 20]
+
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
+    model = Model(input_tensor, output_tensor)
+    model.num_classes = num_classes
+
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
+    model.steps = [8, 16, 32, 64, 100, 300]
+
+    return model
+
+
+def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu', softmax=True):
+    """DSOD, DenseNet based SSD512 architecture.
+
+    # Arguments
+        input_shape: Shape of the input image.
+        num_classes: Number of classes including background.
+        activation: Type of activation functions.
+    
+    # References
+        https://arxiv.org/abs/1708.01241
+    """
+    
+    K.clear_session()
+    
+    x = input_tensor = Input(shape=input_shape)
+    source_layers = dsod512_body(x, activation=activation)
+
+    num_priors = [4, 6, 6, 6, 6, 4, 4]
+    normalizations = [20, 20, 20, 20, 20, 20, 20]
+
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
+    model = Model(input_tensor, output_tensor)
+    model.num_classes = num_classes
+
+    # parameters for prior boxes
+    model.image_size = input_shape[:2]
+    model.source_layers = source_layers
+    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
+    model.steps = [8, 16, 32, 64, 128, 256, 512]
+
+    return model
+
+SSD300_dense = DSOD300
+SSD512_dense = DSOD512
+
 
