@@ -675,3 +675,113 @@ def calc_memory_usage(model, batch_size=1):
     print('model memory usage %8.2f %s' % (total_memory, s))
 
 
+def count_parameters(model):
+    trainable_count = int(np.sum([K.count_params(p) for p in set(model.trainable_weights)]))
+    non_trainable_count = int(np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
+    
+    print('trainable     %16i' %(trainable_count))
+    print('non-trainable %16i' %(non_trainable_count))
+
+
+def plot_parameter_statistic(model, layer_types=['Dense', 'Conv2D'], trainable=True, non_trainable=False, outputs=False):
+    parameter_count = []
+    names = []
+    for l in model.layers:
+        if l.__class__.__name__ not in layer_types:
+            continue
+        count = 0
+        if outputs:
+            output_count = 1
+            for s in l.output_shape:
+                if s is None:
+                    continue
+                output_count *= s
+            count += output_count
+        if trainable:
+            count += np.sum([K.count_params(p) for p in set(l.trainable_weights)])
+        if non_trainable:
+            count += np.sum([K.count_params(p) for p in set(l.non_trainable_weights)])
+        parameter_count.append(count)
+        names.append(l.name)
+    
+    y = range(len(names))
+    plt.figure(figsize=[12,len(y)//4])
+    plt.barh(y, parameter_count, align='center')
+    plt.yticks(y, names)
+    plt.ylim(y[0]-1, y[-1]+1)
+    ax = plt.gca()
+    ax.invert_yaxis()
+    ax.xaxis.tick_top()
+    plt.show()
+
+
+def calc_receptive_field(model, layer_name, verbose=False):
+    """Calculate the receptive field related to a certain layer.
+    
+    # Arguments
+        model: Keras model.
+        layer_name: Name of the layer.
+    
+    # Return
+        rf: Receptive field (w, h).
+        es: Effictive stides in the input image.
+        offset: Center of the receptive field associated with the first unit (x, y).
+    """
+    
+    fstr = '%-20s %-16s %-10s %-10s %-10s %-16s %-10s %-16s'
+    if verbose:
+        print(fstr % ('name', 'type', 'kernel', 'stride', 'dilation', 'receptive field', 'offset', 'effective stride'))
+    l = model.get_layer(layer_name)
+    rf = np.ones(2)
+    es = np.ones(2)
+    offset = np.zeros(2)
+    
+    while True:
+        layer_type = l.__class__.__name__
+        k, s, d = (1,1), (1,1), (1,1)
+        p = 'same'
+        if layer_type in ['Conv2D']:
+            k = l.kernel_size
+            d = l.dilation_rate
+            s = l.strides
+            p = l.padding
+        elif layer_type in ['MaxPooling2D', 'AveragePooling2D']:
+            k = l.pool_size
+            s = l.strides
+            p = l.padding
+        elif layer_type in ['ZeroPadding2D']:
+            p = l.padding
+        elif layer_type in ['InputLayer', 'Activation', 'BatchNormalization']:
+            pass
+        else:
+            print('unknown layer type %s %s' % (l.name, layer_type))
+            
+        k = np.array(k)
+        s = np.array(s)
+        d = np.array(d)
+        
+        ek = k + (k-1)*(d-1) # effective kernel size
+        rf = rf * s + (ek-s)
+        es = es * s
+        
+        if p == 'valid':
+            offset += ek/2
+            print(ek/2, offset)
+        if type(p) == tuple:
+            offset -= [p[0][0], p[1][0]]
+            print([p[0][0], p[1][0]], offset)
+        
+        rf = rf.astype(int)
+        es = es.astype(int)
+        #offset = offset.astype(int)
+        if verbose:
+            print(fstr % (l.name, l.__class__.__name__, k, s, d, rf, offset, es))
+        
+        if layer_type == 'InputLayer':
+            break
+        
+        input_name = l.input.name.split('/')[0]
+        input_name = input_name.split(':')[0]
+        l = model.get_layer(input_name)
+    
+    return rf, es, offset
