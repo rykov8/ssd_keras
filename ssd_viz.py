@@ -83,48 +83,6 @@ def plot_activation(model, input_image, layer_name):
     plt.close()
 
 
-def plot_priorboxes(prior_boxes, image, number_of_boxes_per_location, location_indices=None):
-    """Visualizes the output of a PriorBox layer.
-    
-    # Arguments
-        ...
-    """
-    
-    colors='rgbcmy'*3
-    
-    nboxes = len(prior_boxes)
-    nratios = number_of_boxes_per_location
-    nlocs = nboxes/nratios
-
-    if location_indices == None:
-        n = 4
-        location_indices = np.unique(np.linspace(0,nlocs-1, int((n**2-1+nlocs)**0.5/n), dtype=int))
-
-    plt.imshow(image)
-    fig = plt.gcf()
-    fig.set_figheight(12)
-    fig.set_figwidth(12)
-    ax = plt.gca()
-    
-    x_all, y_all = [], []
-    img_height, img_width = image.shape[:2]
-    for j, box in enumerate(prior_boxes):
-        xmin, ymin, xmax, ymax = box[:4] * np.array([img_width, img_height, img_width, img_height])
-        x_all.append((xmin+xmax)/2.)
-        y_all.append((ymin+ymax)/2.)
-        
-        if not j // nratios in location_indices:
-            continue
-        
-        coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
-        ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=colors[j%nratios], linewidth=2))
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-
-    plt.plot(x_all, y_all, 'r.')
-    plt.show()
-
-
 def to_rec(box, image_size):
     """Find minimum rectangle around some points and scale it to desired image
     size.
@@ -144,81 +102,45 @@ def to_rec(box, image_size):
     return xy_rec
 
 
-def plot_gt(image, gt_data, classes=None, show_labels=True):
-    if classes is not None:
-        colors = plt.cm.hsv(np.linspace(0, 1, len(classes)+1)).tolist()
-    img_size = image.shape[:2]
-    
-    plt.imshow(image / 255.)
-    ax = plt.gca()
-    
-    for d in gt_data:
-        box = d[:4]
-        class_one_hot = d[4:]
-        label = np.nonzero(class_one_hot)[0][0]+1
-        color = 'r' if classes == None else colors[label]
-        xy_rec = to_rec(box, img_size)
-        ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor=color, linewidth=2))
-        
-        if show_labels:
-            label_name = label if classes == None else classes[label-1]
-            xmin, ymin = xy_rec[0]
-            ax.text(xmin, ymin, label_name, bbox={'facecolor':color, 'alpha':0.5})
-    
-    plt.show()
-    return
-
-
-def plot_results(image, results, classes=None, confidence_threshold=0.6, show_labels=True, gt_data=None):
-    top_indices = [i for i, conf in enumerate(results[:, 1]) if conf >= confidence_threshold]
-    if classes is not None:
-        colors = plt.cm.hsv(np.linspace(0, 1, len(classes)+1)).tolist()
-    img_size = image.shape[:2]
-    
-    plt.imshow(image / 255.)
-    ax = plt.gca()
-    
-    # draw ground truth
-    if gt_data is not None:
-        for box in gt_data:
-            label = np.nonzero(box[4:])[0][0]+1
-            color = 'g' if classes == None else colors[label]
-            xy_rec = to_rec(box[:4], img_size)
-            ax.add_patch(plt.Polygon(xy_rec, fill=True, color=color, linewidth=1, alpha=0.3))
-    
-    # draw prediction
-    for r in results[top_indices]:
-        label = int(r[0])
-        confidence = r[1]
-        color = 'r' if classes == None else colors[label]
-        xy_rec = to_rec(r[2:], img_size)
-        ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor=color, linewidth=2))
-        
-        if show_labels:
-            label_name = label if classes == None else classes[label-1]
-            xmin, ymin = xy_rec[0]
-            display_txt = '%0.2f, %s' % (confidence, label_name)        
-            ax.text(xmin, ymin, display_txt, bbox={'facecolor':color, 'alpha':0.5})
-
-    plt.show()
-    return #results[top_indices]
-
-
-
-def plot_box(box, box_format='xywh', color='r', linewidth=1):
+def plot_box(box, box_format='xywh', color='r', linewidth=1, normalized=False, vertices=False):
     if box_format == 'xywh': # opencv
         xmin, ymin, w, h = box
         xmax, ymax = xmin + w, ymin + h
     elif box_format == 'xyxy':
         xmin, ymin, xmax, ymax = box
-    elif box_format == 'percent':
-        im = plt.gci()
-        img_h, img_w = im.get_size()
-        xmin, ymin, xmax, ymax = box * [img_h, img_w, img_h, img_w]
     if box_format == 'polygon':
         xy_rec = np.reshape(box, (-1, 2))
     else:
         xy_rec = np.array([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]])
+    if normalized:
+        im = plt.gci()
+        xy_rec = xy_rec * np.tile(im.get_size(), (4,1))
     ax = plt.gca()
     ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor=color, linewidth=linewidth))
+    if vertices:
+        c = 'rgby'
+        for i in range(4):
+            plt.plot(xy_rec[i,0],xy_rec[i,1], c[i], marker='o', markersize=4)
 
+
+def escape_latex(s):
+    new_s = []
+    for c in s:
+        if c in '#$%&_{}':
+            new_s.extend('\\'+c)
+        elif c == '\\':
+            new_s.extend('\\textbackslash{}')
+        elif c == '^':
+            new_s.extend('\\textasciicircum{}')
+        elif c == '~':
+            new_s.extend('\\textasciitilde{}')
+        else:
+            new_s.append(c)
+    return ''.join(new_s)
+    
+    # from pgf.py
+    # TeX defines a set of special characters, such as:
+    # # $ % & ~ _ ^ \ { }
+    # Generally, these characters must be escaped correctly. For convenience,
+    # some characters (_,^,%) are automatically escaped outside of math
+    # environments.
