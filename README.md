@@ -83,3 +83,7 @@ mean editdistance             0.333
 mean normalized editdistance  0.081  
 character recogniton rate     0.916  
 word recognition rate         0.858  
+
+## Notes
+The code was written in associated with the thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf).
+
