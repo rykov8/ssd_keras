@@ -17,7 +17,7 @@ from ssd_model import ssd300_body
 from ssd_layers import Normalize
 
 
-def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
+def multibox_head(source_layers, num_priors, num_classes, normalizations=None, softmax=True):
 
     mbox_conf = []
     mbox_loc = []
@@ -47,14 +47,17 @@ def multibox_head(source_layers, num_priors, num_classes, normalizations=None):
 
     mbox_conf = concatenate(mbox_conf, axis=1, name='mbox_conf')
     mbox_conf = Reshape((-1, num_classes), name='mbox_conf_logits')(mbox_conf)
-    mbox_conf = Activation('softmax', name='mbox_conf_final')(mbox_conf)
+    if softmax:
+        mbox_conf = Activation('softmax', name='mbox_conf_final')(mbox_conf)
+    else:
+        mbox_conf = Activation('sigmoid', name='mbox_conf_final')(mbox_conf)
 
     predictions = concatenate([mbox_loc, mbox_conf], axis=2, name='predictions')
     
     return predictions
 
 
-def TB300(input_shape=(300, 300, 3), num_classes=2):
+def TB300(input_shape=(300, 300, 3), num_classes=2, softmax=True):
     """TextBoxes300 architecture.
 
     # Arguments
@@ -74,16 +77,17 @@ def TB300(input_shape=(300, 300, 3), num_classes=2):
     # Add multibox head for classification and regression
     num_priors = [12, 12, 12, 12, 12, 12]
     normalizations = [20, -1, -1, -1, -1, -1]
-    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations)
+    output_tensor = multibox_head(source_layers, num_priors, num_classes, normalizations, softmax)
     model = Model(input_tensor, output_tensor)
-
+    model.num_classes = num_classes
+    
     # parameters for prior boxes
+    num_maps = len(source_layers)
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.source_layers_names = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
-    model.aspect_ratios = [[1, 2, 3, 5, 7, 10, 1, 2, 3, 5, 7, 10]] * 6
-    #model.shifts = [[(0.0, 0.0)] * 6 + [(0.0, 1.0)] * 6] * 6
-    model.shifts = [[(0.0, -0.5)] * 6 + [(0.0, 0.5)] * 6] * 6
+    model.aspect_ratios = [[1, 2, 3, 5, 7, 10, 1, 2, 3, 5, 7, 10]] * num_maps
+    #model.shifts = [[(0.0, 0.0)] * 6 + [(0.0, 1.0)] * 6] * num_maps
+    model.shifts = [[(0.0, -0.5)] * 6 + [(0.0, 0.5)] * 6] * num_maps
     #model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
     model.special_ssd_boxes = False
     model.flips = False
