@@ -251,7 +251,7 @@ class SSDFocalLoss(object):
         loc_loss = pos_loc_loss / (num_pos + eps)
         
         # total loss
-        total_loss = slef.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
+        total_loss = self.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
         
         # metrics
         precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
