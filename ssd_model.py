@@ -1,6 +1,5 @@
 """Keras implementation of SSD."""
 
-import keras.backend as K
 from keras.layers import Activation
 from keras.layers import Conv2D
 from keras.layers import Dense
@@ -237,8 +236,6 @@ def SSD300(input_shape=(300, 300, 3), num_classes=21, softmax=True):
     # References
         https://arxiv.org/abs/1512.02325
     """
-    K.clear_session()
-    
     x = input_tensor = Input(shape=input_shape)
     source_layers = ssd300_body(x)
     
@@ -274,8 +271,6 @@ def SSD512(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     # References
         https://arxiv.org/abs/1512.02325
     """
-    K.clear_session()
-    
     x = input_tensor = Input(shape=input_shape)
     source_layers = ssd512_body(x)
     
@@ -308,9 +303,6 @@ def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu', softma
     # References
         https://arxiv.org/abs/1708.01241
     """
-    
-    K.clear_session()
-    
     x = input_tensor = Input(shape=input_shape)
     source_layers = dsod300_body(x, activation=activation)
 
@@ -344,9 +336,6 @@ def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu', softma
     # References
         https://arxiv.org/abs/1708.01241
     """
-    
-    K.clear_session()
-    
     x = input_tensor = Input(shape=input_shape)
     source_layers = dsod512_body(x, activation=activation)
 
@@ -372,8 +361,6 @@ SSD512_dense = DSOD512
 def SSD512_resnet(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     
     # TODO: it does not converge!
-
-    K.clear_session()
     
     x = input_tensor = Input(shape=input_shape)
     source_layers = ssd512_resnet_body(x)

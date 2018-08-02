@@ -108,6 +108,14 @@ class BaseGTUtility(object):
         return idx, img, self.data[idx]
     
     def sample_random_batch(self, batch_size=32, input_size=(512,512), seed=1337):
+        '''
+        
+        # Return
+            idxs: List of the sample idices in the dataset.
+            inputs: List of preprocessed input images (BGR).
+            images: List of normalized images for vizualization (RGB).
+            data: List of Ground Truth data, arrays with bounding boxes and class label.
+        '''
         
         if seed is not None:
             np.random.seed(seed)

@@ -419,7 +419,7 @@ class PriorUtil(object):
         num_priors = self.priors.shape[0]
         
         gt_boxes = self.gt_boxes = np.copy(gt_data[:,:4]) # normalized xmin, ymin, xmax, ymax
-        gt_class_idx = np.copy(gt_data[:,-1])
+        gt_class_idx = np.asarray(gt_data[:,-1], dtype=np.int)
         gt_one_hot = np.zeros([len(gt_class_idx),num_classes])
         gt_one_hot[:,gt_class_idx] = 1 # one_hot classes including background
         
@@ -654,13 +654,11 @@ def calc_memory_usage(model, batch_size=1):
 
     shapes_mem_count = 0
     for l in model.layers:
-        single_layer_mem = 1
-        for s in l.output_shape:
-            if s is None:
-                continue
-            single_layer_mem *= s
-        shapes_mem_count += single_layer_mem
-
+        if type(l.output_shape[0]) is tuple:
+            shapes_mem_count += np.sum([np.prod(s[1:]) for s in l.output_shape])
+        else:
+            shapes_mem_count += np.prod(l.output_shape[1:])
+        
     trainable_count = np.sum([K.count_params(p) for p in set(model.trainable_weights)])
     non_trainable_count = np.sum([K.count_params(p) for p in set(model.non_trainable_weights)])
     
@@ -691,12 +689,7 @@ def plot_parameter_statistic(model, layer_types=['Dense', 'Conv2D'], trainable=T
             continue
         count = 0
         if outputs:
-            output_count = 1
-            for s in l.output_shape:
-                if s is None:
-                    continue
-                output_count *= s
-            count += output_count
+            count += np.prod(l.output_shape[1:])
         if trainable:
             count += np.sum([K.count_params(p) for p in set(l.trainable_weights)])
         if non_trainable:
