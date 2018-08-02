@@ -1,6 +1,5 @@
 """Keras implementation of TextBoxes++."""
 
-import keras.backend as K
 from keras.layers import Activation
 from keras.layers import Conv2D
 from keras.layers import Dense
@@ -88,8 +87,6 @@ def TBPP512(input_shape=(512, 512, 3), softmax=True):
         - [TextBoxes++: A Single-Shot Oriented Scene Text Detector](https://arxiv.org/abs/1801.02765)
     """
     
-    K.clear_session()
-    
     # SSD body
     x = input_tensor = Input(shape=input_shape)
     source_layers = ssd512_body(x)
@@ -118,8 +115,6 @@ def TBPP512(input_shape=(512, 512, 3), softmax=True):
 def TBPP512_dense(input_shape=(512, 512, 3), softmax=True):
     """DenseNet based Architecture for TextBoxes++512.
     """
-    
-    K.clear_session()
     
     # DSOD body
     x = input_tensor = Input(shape=input_shape)
