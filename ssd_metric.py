@@ -8,13 +8,16 @@ import itertools
 from ssd_utils import iou
 
 
-def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, max_dets=None):
+eps = 1e-10
+
+
+def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, max_dets=None, figsize=(10,10), return_fmeasure=False):
     """Evaluates detection results, plots precision-recall curves and 
     calculates mean Average Precision.
     
     # Arguments
         ground_truth: List of ground truth data with 
-            shape (objects, x1+y1+x2+y2+classes)
+            shape (objects, x1+y1+x2+y2+label)
         detection_results: List of corresponding detection Results with 
             shape (objects, x1+y1+x2+y2+confidence+label)
         gt_util: Instance of BaseGTUtility containing metadata about the 
@@ -48,7 +51,7 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
 
     for i in range(len(gt)):
         gt_boxes = gt[i][:,:4]
-        gt_labels = np.argmax(gt[i][:,4:], axis=1)
+        gt_labels = gt[i][:,-1].astype(np.int32)
         
         conf_img = dt[i][:,4]
         order = np.argsort(-conf_img) # sort by confidence
@@ -57,7 +60,7 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
         dt_img = dt[i][order]
         
         dt_boxes = dt_img[:,:4]
-        dt_labels = dt_img[:,5].astype(np.int32)
+        dt_labels = dt_img[:,-1].astype(np.int32)
         
         num_dt_img = len(dt_labels)
         TP_img = np.zeros((num_dt_img, num_classes))
@@ -120,6 +123,18 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
 
     TP_sum = np.sum(TP, axis=0)
     FP_sum = np.sum(FP, axis=0)
+    
+    if return_fmeasure:
+        TP_sum = np.sum(TP_sum)
+        FP_sum = np.sum(FP_sum)
+        FN_sum = np.sum(FN_sum)
+        
+        recall = TP_sum / (TP_sum+FN_sum)
+        precision = TP_sum / (TP_sum+FP_sum)
+        fmeasure = 2 * precision * recall / (precision + recall + eps)
+        
+        np.seterr(**err)
+        return fmeasure
 
     # TP + FN = num_groundtruth_boxes
     #print(np.sum(TP, axis=0) + FN_sum)
@@ -157,7 +172,7 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
     print('%-19s %8i %8i %8i %6.3f @ %g %s' % 
             ('Sum / mAP', np.sum(TP_sum), np.sum(FP_sum), np.sum(FN_sum), MAP, iou_thresh, max_dets))
     
-    plt.figure()
+    plt.figure(figsize=figsize)
     ax = plt.gca()
     if False: # colors
         ax.set_prop_cycle(plt.cycler('color', colors[1:]))
@@ -222,11 +237,12 @@ def confusion_matrix(actual, predicted, num_classes, normalize=False):
         m = m / np.max(m)
     return m
 
-def plot_confusion_matrix(confusion_matrix, classes):
+def plot_confusion_matrix(confusion_matrix, classes, figsize=(10,10)):
+    plt.figure(figsize=figsize)
     cmap = plt.cm.Blues
     n = len(classes)
     ticks = np.arange(n)
-    plt.matshow(confusion_matrix, cmap=cmap)
+    plt.matshow(confusion_matrix, cmap=cmap, fignum=1)
     plt.xticks(ticks, classes, rotation=90)
     plt.yticks(ticks, classes, rotation=0)
     plt.ylabel('Actual')
