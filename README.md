@@ -1,7 +1,11 @@
 # SSD-based object and text detection with Keras
-This repository contains the implementation of various approaches to object detection in general and to text detection/recognition in particular.
+This repository contains the implementation of various approaches to object detection in general and text detection/recognition in particular.
 
-The technical background for the implementations is provided by the following papers.
+Its code was initially used to carry out the experiments for the author's master thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf) and was later extended by the implementation of more recent approaches.
+
+## Technical background
+
+Most of the ideas used for this project go back to the following papers:
 
 ### SSD: Single Shot MultiBox Detector [arXiv:1512.02325](https://arxiv.org/abs/1512.02325)
 SSD is a generic object detector that does local regression and classification on multiple feature maps of a CNN to predict a dense population of bounding boxes, wich are subsequently filtered by a confidence threshold and NMS.
@@ -64,11 +68,18 @@ precision         0.846
 recall            0.812  
 f-measure         0.828  
 
-#### [SegLink + DenseNet + Focal Loss](http://83.169.39.135/ssd_detectors/201806021007_dsodsl512_synthtext.zip)
+#### [SegLink with DenseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201806021007_dsodsl512_synthtext.zip)
 trained and tested on subsets of SynthText  
 precision         0.940  
 recall            0.904  
 f-measure         0.922  
+
+#### [TextBoxes++ with DennseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201807091503_dsodtbpp512fl_synthtext.zip)
+trained and tested on subsets of SynthText  
+precision         0.901  
+recall            0.931  
+f-measure         0.916  
+
 
 #### [CRNN with LSTM](http://83.169.39.135/ssd_detectors/201806162129_crnn_lstm_synthtext.zip)
 trained and tested on cropped word level bounding boxes form SynthText  
@@ -83,7 +94,4 @@ mean editdistance             0.333
 mean normalized editdistance  0.081  
 character recogniton rate     0.916  
 word recognition rate         0.858  
-
-## Notes
-The code was written in associated with the thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf).
 
