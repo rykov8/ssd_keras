@@ -1,0 +1,79 @@
+
+
+cleanup and update debugging notebooks
+virtual batch_size
+
+change naming
+    true_labels, pred_labels
+    input/image size?
+    'plot' in 'draw'
+    'inter layer segments'
+
+data augmentation
+    augmentation and batch size in validation?
+    add random rotation, translation, zero padding
+
+SSD
+    check if prior boxes are always at the same location in the receptive field
+        is it related to bad results on small objects?
+    convert fc6, fc7 vgg layers to conv layers
+        training time is much longer, is it caused by the missing pretrained fc layers?
+    more native image aspect ratio 128 * (4, 3) = (512, 384), but largest box is not in center
+    ResNet https://github.com/hzm8341/SSD_keras_restnet/blob/master/SSD_ResNet/SSD_resnet.py
+    MobileNet https://github.com/tanakataiki/ssd_keras/blob/master/ssd300MobileNet.py
+    do not crop boxes outside image
+    remove flip option for aspect ratios
+    try input normalisation
+    unfreeze layers gradually?
+    DONE
+        use softmax for each class, not categorical cross entropy
+        DSOD
+        precision, recall, f-mean / f-measure
+        GT background class
+        sample images from generator
+        https://github.com/scardine/image_size
+        no one_hot in gt_util
+        CustomCallbacks in ssd_traing, for learning rate and logging
+        try focal loss, with alpha = 1 and gamma=3 can boost 1.4% mAP on pascal voc 2007
+        custom epoch size, checkpoint callback, test, eval interval? 
+        improve decoding performance, sparse, faster nms
+        hard negative mining?, fix it
+
+SegLink
+    directed links to get text orientation
+    training data, on icdar combined words to lines lead to better results
+    
+    display overlap of segments
+    
+    training
+        lambdas = 1
+        first train segments, then linking
+        parameters for sl loss and focal loss
+    
+    debug
+        segment ground truth at the left and right side
+        check if parameters get properly loaded
+        why some boxes are wrong
+    
+    prior box is assigned to ground truth with smallest distance (if it lies in multiple gt boxes), is this the case?
+    
+    DONE
+        grid search
+        confidence of combined boxes is the mean conf of the segments weighted by there area
+        more natural input ratio
+
+TextBoxes / TextBoxes++
+    use recognition score to reduce false positives in detection
+
+CRNN
+    larger / variable input width
+    more units
+    RGB input?
+    check synthtext? 'small caps' etc
+    normalize input, subtract mean
+    DONE
+        larger alphabet
+        GRU
+        editdistance / levenshtein distance
+
+
