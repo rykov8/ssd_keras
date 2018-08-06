@@ -1,7 +1,7 @@
 # SSD-based object and text detection with Keras
 This repository contains the implementation of various approaches to object detection in general and text detection/recognition in particular.
 
-Its code was initially used to carry out the experiments for the author's master thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf) and was later extended by the implementation of more recent approaches.
+Its code was initially used to carry out the experiments for the author's master thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf) and later extended by the implementation of more recent approaches.
 
 ## Technical background
 

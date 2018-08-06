@@ -69,11 +69,10 @@ def crop_words(img, boxes, height, width=None, grayscale=True):
 
 class InputGenerator(object):
     """Model input generator for cropping bounding boxes."""
-    def __init__(self, gt_util_train, gt_util_val, batch_size, alphabet,
-                grayscale=True, input_size=(255,32), max_string_len=30):
+    def __init__(self, gt_util, batch_size, alphabet, input_size=(255,32),
+                grayscale=True, max_string_len=30):
         
-        self.gt_util_train = gt_util_train
-        self.gt_util_val = gt_util_val
+        self.gt_util = gt_util
         self.batch_size = batch_size
         self.max_string_len = max_string_len
         self.grayscale = grayscale
@@ -81,11 +80,7 @@ class InputGenerator(object):
         self.alphabet = alphabet
     
     def generate(self, train=True):
-        
-        if train:
-            gt_util = self.gt_util_train
-        else:
-            gt_util = self.gt_util_val
+        gt_util = self.gt_util
             
         alphabet = self.alphabet
         batch_size = self.batch_size
@@ -114,7 +109,7 @@ class InputGenerator(object):
                 img = cv2.imread(img_path)
                 #mean = np.array([104,117,123])
                 #img -= mean[np.newaxis, np.newaxis, :]
-                boxes = np.copy(gt_util.data[idx][:,:-gt_util.num_classes])
+                boxes = np.copy(gt_util.data[idx][:,:-1])
                 texts = np.copy(gt_util.text[idx])
                 
                 # drop boxes with vertices outside the image
