@@ -508,16 +508,16 @@ class InputGenerator(object):
                     img = img.astype(np.float32)
                 
                 if debug:
+                    plt.figure(figsize=(12,6))
                     # origal gt image
-                    plt.figure()
+                    plt.subplot(121)
                     dbg_img = np.copy(raw_img)
                     dbg_img /= 256
                     dbg_img = dbg_img[:,:,(2,1,0)]
                     plt.imshow(dbg_img)
                     gt_util.plot_gt(raw_y)
-                    plt.show()
                     # network input image
-                    plt.figure()
+                    plt.subplot(122)
                     dbg_img = np.copy(img)
                     dbg_img /= 256
                     dbg_img = dbg_img[:,:,(2,1,0)]
