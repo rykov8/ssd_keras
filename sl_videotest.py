@@ -1,10 +1,7 @@
-""" A class for testing a SSD model on a video file or webcam """
+""" A class for testing a SegLink model on a video file or webcam """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
-import keras
-import pickle
 from timeit import default_timer as timer
 
 from ssd_data import preprocess
@@ -18,10 +15,6 @@ class VideoTest(object):
         multiple videos and webcams.
         
         Arguments:
-            class_names: A list of strings, each containing the name of a class.
-                         The first name should be that of the background class
-                         which is not used.
-                         
             model:       An SSD model. It should already be trained for 
                          images similar to the video to test on.
                          
@@ -35,19 +28,12 @@ class VideoTest(object):
     
     """
     
-    def __init__(self, model, prior_util, class_names, input_shape):
-        self.class_names = class_names
-        self.num_classes = len(class_names)
+    def __init__(self, model, prior_util, input_shape):
         self.model = model
         self.input_shape = input_shape
         self.prior_util = prior_util
         
-        # use same colors as in plots
-        colors = plt.cm.hsv(np.linspace(0, 1, self.num_classes+1))
-        colors = (colors[:,(2,1,0)]*255).astype(np.int32).tolist()
-        self.class_colors = colors
-        
-    def run(self, video_path=0, start_frame=0, segment_threshold=0.9, link_threshold=0.7):
+    def run(self, video_path=0, start_frame=0, segment_threshold=0.55, link_threshold=0.45):
         """ Runs the test on a video (or webcam)
         
         # Arguments
@@ -71,7 +57,7 @@ class VideoTest(object):
         vid_w = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
         vid_h = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
         
-        # Skip frames until reaching start_frame
+        # skip frames until reaching start_frame
         if start_frame > 0:
             vid.set(cv2.CAP_PROP_POS_MSEC, start_frame)
             
@@ -92,19 +78,17 @@ class VideoTest(object):
             x = np.array([preprocess(img, input_size)])
             y = self.model.predict(x)
             
-            result = self.prior_util.decode(y[0], segment_threshold=0.7, link_threshold=0.01)
+            result = self.prior_util.decode(y[0], segment_threshold, link_threshold)
             
             for r in result:
-                xy = rbox_to_polygon(r)
+                xy = rbox_to_polygon(r[:5])
                 xy = xy / input_size * [vid_w, vid_h]
                 xy = xy.reshape((-1,1,2))
                 xy = np.round(xy)
                 xy = xy.astype(np.int32)
                 cv2.polylines(img, [xy], True, (0,0,255))
                 
-            # Calculate FPS
-            # This computes FPS for everything, not just the model's execution 
-            # which may or may not be what you want
+            # calculate fps
             curr_time = timer()
             exec_time = curr_time - prev_time
             prev_time = curr_time
@@ -115,7 +99,7 @@ class VideoTest(object):
                 fps = "FPS: " + str(curr_fps)
                 curr_fps = 0
             
-            # Draw FPS in top left corner
+            # draw fps
             cv2.rectangle(img, (0,0), (50, 17), (255,255,255), -1)
             cv2.putText(img, fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
@@ -125,26 +109,21 @@ class VideoTest(object):
 
 if __name__ == '__main__':
 
-    from sl_model import SL512 as Model
+    from sl_model import DSODSL512 as Model
     from sl_utils import PriorUtil
 
-    class_names = ['Background', 'Text'];
     input_shape = (512,512,3)
-    model = Model(input_shape, num_classes=len(class_names))
+    model = Model(input_shape)
     prior_util = PriorUtil(model)
 
-    #experiment = '201709091812_sl_test'
-    #epoch = 11
-    experiment = '201711111814_sl512_synthtext_focal'
-    epoch = 1
-    model.load_weights('checkpoints/%s/weights.%03d.h5' % (experiment, epoch), by_name=True)
+    model.load_weights('./checkpoints/201711132011_dsodsl512_synthtext/weights.001.h5', by_name=True)
     
-    vid_test = VideoTest(model, prior_util, class_names, input_shape)
+    vid_test = VideoTest(model, prior_util, input_shape)
 
     # To test on webcam 0, /dev/video0
     try:
         #vid_test.run('data/video.mp4', start_frame=100)
-        vid_test.run(0)
+        vid_test.run(video_path=0, start_frame=0, segment_threshold=0.55, link_threshold=0.45)
     except KeyboardInterrupt:
         pass
     

@@ -1,15 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-""" A class for testing a SSD model on a video file or webcam """
-
-from __future__ import print_function
+""" A class for performing SegLink detetion on ROS Image topics """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
-import keras
-import pickle
 from timeit import default_timer as timer
 
 import rospy
@@ -23,6 +15,19 @@ import tensorflow as tf
 
 
 class RosVideoTest:
+    """ Class for performing SegLink detection on a ROS Image topic and 
+    publishing the results on a secod Image topic.
+    
+    Arguments:
+        model: Trained SegLink model.
+        prior_util: PriorUtil object for decoding the output of the SegLink 
+            model.
+        class_names: List of strings, each containing the name of a class.
+            The first name should be that of the background class
+            which is not used.
+        input_shape: The shape that the model expects for its input, 
+            as a tuple, for example (512, 512, 3),
+    """
     def __init__(self, model, prior_util, class_names, input_shape):
         self.class_names = class_names
         self.num_classes = len(class_names)
@@ -30,13 +35,7 @@ class RosVideoTest:
         self.input_shape = input_shape
         self.prior_util = prior_util
         
-        # use same colors as in plots
-        colors = plt.cm.hsv(np.linspace(0, 1, self.num_classes+1))
-        colors = (colors[:,(2,1,0)]*255).astype(np.int32).tolist()
-        self.class_colors = colors
-        
         self.graph = tf.get_default_graph()
-        
         self.prev_time = timer()
         
         self.accum_time = 0
@@ -59,7 +58,7 @@ class RosVideoTest:
         with self.graph.as_default():
             y = self.model.predict(x)
         
-        result = self.prior_util.decode(y[0], segment_threshold=0.55, link_threshold=0.35)
+        result = self.prior_util.decode(y[0], segment_threshold=0.55, link_threshold=0.45)
         
         for r in result:
             xy = rbox_to_polygon(r[:5])
@@ -69,9 +68,7 @@ class RosVideoTest:
             xy = xy.astype(np.int32)
             cv2.polylines(img, [xy], True, (0,0,255))
             
-        # Calculate FPS
-        # This computes FPS for everything, not just the model's execution 
-        # which may or may not be what you want
+        # calculate fps
         curr_time = timer()
         exec_time = curr_time - self.prev_time
         self.prev_time = curr_time
@@ -82,7 +79,7 @@ class RosVideoTest:
             self.fps = "FPS: " + str(self.curr_fps)
             self.curr_fps = 0
         
-        # Draw FPS in top left corner
+        # draw fps
         cv2.rectangle(img, (0,0), (50, 17), (255,255,255), -1)
         cv2.putText(img, self.fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
         
@@ -108,14 +105,10 @@ if __name__ == '__main__':
 
     class_names = ['Background', 'Text'];
     input_shape = (512,512,3)
-    model = Model(input_shape, num_classes=len(class_names))
+    model = Model(input_shape)
     prior_util = PriorUtil(model)
 
-    experiment = '201711111814_sl512_synthtext_focal'
-    epoch = 1
-    
-    load_weights(model, 'checkpoints/%s/weights.%03d.h5' % (experiment, epoch))
-    
+    load_weights(model, './checkpoints/201711132011_dsodsl512_synthtext/weights.001.h5')
     
     ros_vid_test = RosVideoTest(model, prior_util, class_names, input_shape)
     rospy.init_node('scene_text_reader', anonymous=True)

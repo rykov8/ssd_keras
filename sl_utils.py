@@ -21,6 +21,7 @@ def rot_matrix(theta):
     return np.array([[ct, -st],[st, ct]])
 
 def polygon_to_rbox(xy):
+    # center point plus width, height and orientation angle
     tl, tr, br, bl = xy
     # length of top and bottom edge
     dt, db = tr-tl, bl-br
@@ -30,7 +31,7 @@ def polygon_to_rbox(xy):
     w = (norm(dt) + norm(db)) / 2.
     # height is distance from center to top edge plus distance form center to bottom edge
     h = norm(np.cross(dt, tl-c))/(norm(dt)+eps) + norm(np.cross(db, br-c))/(norm(db)+eps)
-    #h = point_line_distance(c, tl, tr ) +  point_line_distance(c, br, bl )
+    #h = point_line_distance(c, tl, tr) +  point_line_distance(c, br, bl)
     #h = (norm(tl-bl) + norm(tr-br)) / 2.
     # angle is mean of top and bottom edge angle
     theta = (np.arctan2(dt[0], dt[1]) + np.arctan2(db[0], db[1])) / 2.
@@ -44,6 +45,7 @@ def rbox_to_polygon(rbox):
     return box
 
 def polygon_to_rbox2(xy):
+    # two points at the top left and top right corner plus height
     tl, tr, br, bl = xy
     # length of top and bottom edge
     dt, db = tr-tl, bl-br
@@ -60,6 +62,7 @@ def rbox2_to_polygon(rbox):
     return xy
 
 def polygon_to_rbox3(xy):
+    # two points at the center of the left and right edge plus heigth
     tl, tr, br, bl = xy
     # length of top and bottom edge
     dt, db = tr-tl, bl-br

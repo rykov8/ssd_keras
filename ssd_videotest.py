@@ -3,8 +3,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-import keras
-import pickle
 from timeit import default_timer as timer
 
 from ssd_data import preprocess
@@ -143,12 +141,10 @@ if __name__ == '__main__':
     class_names = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
     input_shape = (300,300,3)
     model = Model(input_shape, num_classes=len(class_names))
-    
     prior_util = PriorUtil(model)
 
     # Change this path if you want to use your own trained weights
-    #model.load_weights('../ssd300_voc_weights_fixed.hdf5') 
-    model.load_weights('./checkpoints/201709191502_ssd_voc/weights.051.h5', by_name=True)
+    model.load_weights('./models/ssd300_voc_weights_fixed.hdf5') 
             
     vid_test = VideoTest(model, prior_util, class_names, input_shape)
     

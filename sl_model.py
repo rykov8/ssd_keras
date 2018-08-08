@@ -1,6 +1,5 @@
 """Keras implementation of SegLink."""
 
-import keras.backend as K
 from keras.models import Model
 from keras.layers import Activation
 from keras.layers import Conv2D
@@ -103,8 +102,6 @@ def SL512(input_shape=(512, 512, 3), softmax=True):
         https://arxiv.org/abs/1703.06520
     """
     
-    K.clear_session()
-    
     # SSD body
     x = input_tensor = Input(shape=input_shape)
     source_layers = ssd512_body(x)
@@ -132,8 +129,6 @@ def DSODSL512(input_shape=(512, 512, 3), activation='relu', softmax=True):
         https://arxiv.org/abs/1708.01241
     """
     
-    K.clear_session()
-    
     # DSOD body
     x = input_tensor = Input(shape=input_shape)
     source_layers = dsod512_body(x, activation=activation)
@@ -152,8 +147,6 @@ def DSODSL512(input_shape=(512, 512, 3), activation='relu', softmax=True):
 
 
 def SL384x512_dense(input_shape=(384,512,3), activation='relu'):
-    
-    K.clear_session()
     
     # body
     x = input_tensor = Input(shape=input_shape)
@@ -175,8 +168,6 @@ def SL384x512_dense(input_shape=(384,512,3), activation='relu'):
 def SL512_resnet(input_shape=(512, 512, 3), activation='relu', softmax=True):
     
     # TODO: it does not converge!
-    
-    K.clear_session()
     
     # DSOD body
     x = input_tensor = Input(shape=input_shape)
