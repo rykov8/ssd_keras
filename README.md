@@ -1,7 +1,7 @@
 # SSD-based object and text detection with Keras
 This repository contains the implementation of various approaches to object detection in general and text detection/recognition in particular.
 
-Its code was initially used to carry out the experiments for the author's master thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf) and later extended by the implementation of more recent approaches.
+Its code was initially used to carry out the experiments for the author's master thesis [End-to-End Scene Text Recognition based on Artificial Neural Networks](http://83.169.39.135/thesis/thesis.pdf) and later extended with the implementation of more recent approaches.
 
 ## Technical background
 
@@ -55,10 +55,10 @@ The usage of the code is quite straightforward, clone the repository and run the
 Pretrained SSD models can be converted from the [original Caffe implementation](https://github.com/weiliu89/caffe/tree/ssd).
 
 #### [Converted SSD300](http://83.169.39.135/ssd_detectors/ssd300_voc_weights_fixed.zip)
-PASCAL VOC 07++12 SSD300* from Caffe implementation
+PASCAL VOC 07+12+COCO SSD300* from Caffe implementation
 
 #### [Converted SSD512](http://83.169.39.135/ssd_detectors/ssd512_voc_weights_fixed.zip)
-PASCAL VOC 07++12 SSD512* from Caffe implementation  
+PASCAL VOC 07+12+COCO SSD512* from Caffe implementation  
 may require some fine tuning to achieve the same results
 
 #### [SegLink](http://83.169.39.135/ssd_detectors/201711071436_sl512_synthtext.zip)
