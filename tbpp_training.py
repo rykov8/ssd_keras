@@ -27,6 +27,7 @@ class TBPPFocalLoss(object):
         
         class_true = tf.argmax(conf_true, axis=1)
         class_pred = tf.argmax(conf_pred, axis=1)
+        conf = tf.reduce_max(conf_pred, axis=1)
         
         neg_mask_float = conf_true[:,0]
         neg_mask = tf.cast(neg_mask_float, tf.bool)
@@ -55,7 +56,7 @@ class TBPPFocalLoss(object):
         total_loss = self.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
         
         # metrics
-        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
+        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf, top_k=100*batch_size)
         
         def make_fcn(t):
             return lambda y_true, y_pred: t

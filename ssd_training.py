@@ -8,6 +8,8 @@ import json
 import time
 
 from keras.callbacks import Callback
+from keras.optimizers import Optimizer
+from keras.legacy import interfaces
 
 
 def smooth_l1_loss(y_true, y_pred):
@@ -81,6 +83,7 @@ def compute_metrics(class_true, class_pred, conf, top_k=100):
     eps = K.epsilon()
     
     mask = tf.greater(class_true + class_pred, 0)
+    #mask = tf.logical_or(tf.greater(class_true, 0), tf.greater(class_pred, 0))
     mask_float = tf.cast(mask, tf.float32)
     
     vals, idxs = tf.nn.top_k(conf * mask_float, k=top_k)
@@ -141,6 +144,7 @@ class SSDLoss(object):
         conf_loss = softmax_loss(conf_true, conf_pred)
         class_true = tf.argmax(conf_true, axis=1)
         class_pred = tf.argmax(conf_pred, axis=1)
+        conf = tf.reduce_max(conf_pred, axis=1)
         
         neg_mask_float = conf_true[:,0]
         neg_mask = tf.cast(neg_mask_float, tf.bool)
@@ -184,8 +188,7 @@ class SSDLoss(object):
         neg_conf_loss = neg_conf_loss / (num_neg + eps)
         pos_loc_loss = pos_loc_loss / (num_pos + eps)
         
-        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
-        # TODO: use conf, not conf_loss
+        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf, top_k=100*batch_size)
         
         def make_fcn(t):
             return lambda y_true, y_pred: t
@@ -208,9 +211,10 @@ class SSDLoss(object):
 
 class SSDFocalLoss(object):
 
-    def __init__(self, lambda_conf=1.0, lambda_offsets=1.0):
+    def __init__(self, lambda_conf=10000.0, lambda_offsets=1.0, class_weights=1.0):
         self.lambda_conf = lambda_conf
         self.lambda_offsets = lambda_offsets
+        self.class_weights = class_weights
         self.metrics = []
     
     def compute(self, y_true, y_pred):
@@ -227,6 +231,7 @@ class SSDFocalLoss(object):
         
         class_true = tf.argmax(conf_true, axis=1)
         class_pred = tf.argmax(conf_pred, axis=1)
+        conf = tf.reduce_max(conf_pred, axis=1)
         
         neg_mask_float = conf_true[:,0]
         neg_mask = tf.cast(neg_mask_float, tf.bool)
@@ -236,7 +241,7 @@ class SSDFocalLoss(object):
         num_pos = tf.reduce_sum(pos_mask_float)
         num_neg = num_total - num_pos
         
-        conf_loss = focal_loss(conf_true, conf_pred)
+        conf_loss = focal_loss(conf_true, conf_pred, alpha=self.class_weights)
         conf_loss = tf.reduce_sum(conf_loss)
         
         conf_loss = conf_loss / (num_total + eps)
@@ -246,7 +251,7 @@ class SSDFocalLoss(object):
         loc_pred = tf.reshape(y_pred[:,:,0:4], [-1, 4])
         
         loc_loss = smooth_l1_loss(loc_true, loc_pred)
-        pos_loc_loss = tf.reduce_sum(loc_loss * pos_mask_float) # only for positives
+        pos_loc_loss = tf.reduce_sum(loc_loss * pos_mask_float) # only for positive ground truth
         
         loc_loss = pos_loc_loss / (num_pos + eps)
         
@@ -254,7 +259,7 @@ class SSDFocalLoss(object):
         total_loss = self.lambda_conf * conf_loss + self.lambda_offsets * loc_loss
         
         # metrics
-        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf_loss)
+        precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf, top_k=100*batch_size)
         
         def make_fcn(t):
             return lambda y_true, y_pred: t
@@ -526,3 +531,73 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
         plt.show()
 
 
+class AdamAccumulate(Optimizer):
+    """Adam optimizer with accumulated gradients for having a virtual batch size larger 
+    than the physical batch size.
+
+    Default parameters follow those provided in the original paper.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        beta_1: float, 0 < beta < 1. Generally close to 1.
+        beta_2: float, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        accum_iters: Number of batches between parameter update.
+        
+    # References
+        - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
+        - [On the Convergence of Adam and Beyond](https://openreview.net/forum?id=ryQu7f-RZ)
+    """
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, accum_iters=10, **kwargs):
+        super(AdamAccumulate, self).__init__(**kwargs)
+        self.__dict__.update(locals())
+        self.iterations = K.variable(0)
+        self.lr = K.variable(lr)
+        self.beta_1 = K.variable(beta_1)
+        self.beta_2 = K.variable(beta_2)
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.accum_iters = K.variable(accum_iters)
+    
+    @interfaces.legacy_get_updates_support
+    def get_updates(self, loss, params):
+        grads = self.get_gradients(loss, params)
+        self.updates = [(self.iterations, self.iterations + 1)]
+
+        t = self.iterations + 1
+        lr_t = self.lr * K.sqrt(1. - K.pow(self.beta_2, t)) / (1. - K.pow(self.beta_1, t))
+
+        ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        gs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        self.weights = ms + vs
+        
+        flag = K.equal(t % self.accum_iters, 0)
+        flag = K.cast(flag, dtype='float32')
+        
+        for p, g, m, v, gg in zip(params, grads, ms, vs, gs):
+
+            gg_t = (1 - flag) * (gg + g)
+            m_t = (self.beta_1 * m) + (1. - self.beta_1) * (gg + flag * g) / self.accum_iters
+            v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square((gg + flag * g) / self.accum_iters)
+            p_t = p - flag * lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+
+            self.updates.append((m, flag * m_t + (1 - flag) * m))
+            self.updates.append((v, flag * v_t + (1 - flag) * v))
+            self.updates.append((gg, gg_t))
+            
+            # apply constraints.
+            new_p = p_t
+            if getattr(p, 'constraint', None) is not None:
+                new_p = p.constraint(new_p)
+            self.updates.append(K.update(p, new_p))
+        return self.updates
+            
+    def get_config(self):
+        config = {'lr': float(K.get_value(self.lr)),
+                  'beta_1': float(K.get_value(self.beta_1)),
+                  'beta_2': float(K.get_value(self.beta_2)),
+                  'epsilon': self.epsilon}
+        base_config = super(AdamAccumulate, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
