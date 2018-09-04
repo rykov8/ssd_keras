@@ -8,6 +8,8 @@ import h5py
 import cv2
 import os
 
+from tqdm import tqdm
+
 from ssd_viz import to_rec
 
 
@@ -512,6 +514,17 @@ class PriorUtil(object):
             results = np.empty((0,6))
         self.results = results
         return results
+    
+    def compute_class_weights(self, gt_util, num_samples=np.inf):
+        """Computes weighting factors for the classification loss by considering 
+        the inverse frequency of class instance in local ground truth.
+        """
+        s = np.zeros(gt_util.num_classes)
+        for i in tqdm(range(min(gt_util.num_samples, num_samples))):
+            egt = self.encode(gt_util.data[i])
+            s += np.sum(egt[:,-gt_util.num_classes:], axis=0)
+        si = 1/s
+        return si/np.sum(si) * len(s)
     
     def show_image(self, img):
         """Resizes an image to the network input size and shows it in the current figure.
