@@ -30,9 +30,9 @@ class BaseGTUtility(object):
         self.data = []
         
     def init(self):
-        self.num_classes = num_classes = len(self.classes)
+        self.num_classes = len(self.classes)
         self.classes_lower = [s.lower() for s in self.classes]
-        self.colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
+        self.colors = plt.cm.hsv(np.linspace(0, 1, len(self.classes)+1)).tolist()
 
         # statistics
         stats = np.zeros(self.num_classes)
@@ -96,27 +96,45 @@ class BaseGTUtility(object):
                     angle = 0                
                 ax.text(xy[0,0], xy[0,1], label_name, bbox={'facecolor':color, 'alpha':0.5}, rotation=angle)
     
-    def sample(self, idx=None):
+    def plot_input(self, input_img):
+        img = np.copy(input_img)
+        mean = np.array([104,117,123])
+        img += mean[np.newaxis, np.newaxis, :]
+        img = img[:, :, (2,1,0)]
+        img /= 255
+        plt.imshow(img)
+    
+    def sample(self, idx=None, preserve_aspect_ratio=False, aspect_ratio=1.0):
         '''Draw a random sample form the dataset.
         '''
         if idx is None:
             idx = np.random.randint(0, len(self.image_names))
         file_path = os.path.join(self.image_path, self.image_names[idx])
         img = cv2.imread(file_path)
+        if preserve_aspect_ratio:
+            img = pad_image(img, aspect_ratio)
         img = img[:, :, (2,1,0)]
         img = img / 255.
         return idx, img, self.data[idx]
     
-    def sample_random_batch(self, batch_size=32, input_size=(512,512), seed=1337):
-        '''
+    def sample_random_batch(self, batch_size=32, input_size=(512,512), seed=1337, preserve_aspect_ratio=False):
+        '''Draws a batch of random samples from the dataset.
         
+        # Arguments
+            batch_size: The batch size.
+            input_size: Tuple with height and width of model input.
+            seed: Seed for drawing the sample indices.
+            preserve_aspect_ratio: Boolean flag for padding the images with 
+                random pixels and preserving the aspect ratio of the content.
+
         # Return
             idxs: List of the sample idices in the dataset.
             inputs: List of preprocessed input images (BGR).
             images: List of normalized images for vizualization (RGB).
             data: List of Ground Truth data, arrays with bounding boxes and class label.
         '''
-        
+        h, w = input_size
+        aspect_ratio = w/h
         if seed is not None:
             np.random.seed(seed)
         idxs = np.random.randint(0, self.num_samples, batch_size)
@@ -124,31 +142,37 @@ class BaseGTUtility(object):
         inputs = []
         images = []
         data = []
-
         for i in idxs:
             img_path = os.path.join(self.image_path, self.image_names[i])
             img = cv2.imread(img_path)
+            
+            if preserve_aspect_ratio:
+                img, gt = pad_image(img, aspect_ratio, self.data[i])
+            else:
+                gt = self.data[i]
+            
             inputs.append(preprocess(img, input_size))
-            h, w = input_size
             img = cv2.resize(img, (w,h), cv2.INTER_LINEAR).astype('float32') # should we do resizing
             img = img[:, :, (2,1,0)] # BGR to RGB
             img /= 255
             images.append(img)
-            data.append(self.data[i])
+            data.append(gt)
         inputs = np.asarray(inputs)
-        
+
         return idxs, inputs, images, data
     
-    def sample_batch(self, batch_size, batch_index, input_size=(512,512)):
-        
+    def sample_batch(self, batch_size, batch_index, input_size=(512,512), preserve_aspect_ratio=False):
+        h, w = input_size
+        aspect_ratio = w/h
         idxs = np.arange(batch_size*batch_index, batch_size*(batch_index+1))
         
         inputs = []
         data = []
-        
         for i in idxs:
             img_path = os.path.join(self.image_path, self.image_names[i])
             img = cv2.imread(img_path)
+            if preserve_aspect_ratio:
+                img = pad_image(img, aspect_ratio)
             inputs.append(preprocess(img, input_size))
             data.append(self.data[i])
         inputs = np.asarray(inputs)
@@ -278,11 +302,12 @@ class BaseGTUtility(object):
 
 class InputGenerator(object):
     """Model input generator for data augmentation."""
+    # TODO
     # flag to protect bounding boxes from cropping?
-    # multiple instances of InputGenerator instead of distinction between train and val?
-    def __init__(self, 
-                gt_util, prior_util,
-                batch_size, input_size,
+    # flag for preserving aspect ratio or not
+    # padding to preserve aspect ratio? crop_area_range=[0.75, 1.25]
+    
+    def __init__(self, gt_util, prior_util, batch_size, input_size,
                 augmentation=False,
                 saturation_var=0.5,
                 brightness_var=0.5,
@@ -295,36 +320,23 @@ class InputGenerator(object):
                 crop_area_range=[0.75, 1.0],
                 aspect_ratio_range=[4./3., 3./4.]):
         
-        self.gt_util = gt_util
-        self.prior_util = prior_util
-        self.batch_size = batch_size
-        self.input_size = input_size
-        self.augmentation = augmentation
+        self.__dict__.update(locals())
+        
         self.num_batches = gt_util.num_samples // batch_size
         
         self.color_jitter = []
         if saturation_var:
-            self.saturation_var = saturation_var
             self.color_jitter.append(self.saturation)
         if brightness_var:
-            self.brightness_var = brightness_var
             self.color_jitter.append(self.brightness)
         if contrast_var:
-            self.contrast_var = contrast_var
             self.color_jitter.append(self.contrast)
-        self.lighting_std = lighting_std
-        self.hflip_prob = hflip_prob
-        self.vflip_prob = vflip_prob
-        self.do_crop = do_crop
-        self.add_noise = add_noise
-        self.crop_area_range = crop_area_range
-        self.aspect_ratio_range = aspect_ratio_range
     
     def __str__(self):
         f = '%-20s %s\n'
         s = ''
         s += f % ('input_size', self.input_size)
-        s += f % ('batch_size', self.num_batch_size)
+        s += f % ('batch_size', self.batch_size)
         s += f % ('num_samples', self.gt_util.num_samples)
         s += f % ('num_batches', self.num_batches)
         return s
@@ -369,8 +381,8 @@ class InputGenerator(object):
         img = img + noise
         return np.clip(img, 0, 255)
     
-    def horizontal_flip(self, img, y):
-        if np.random.random() < self.hflip_prob:
+    def horizontal_flip(self, img, y, hflip_prob):
+        if np.random.random() < hflip_prob:
             img = img[:, ::-1]
             num_coords = y.shape[1] - 1
             if num_coords == 8: # polygon case
@@ -380,8 +392,8 @@ class InputGenerator(object):
                 y[:,[0,2]] = 1 - y[:,[2,0]]    
         return img, y
     
-    def vertical_flip(self, img, y):
-        if np.random.random() < self.vflip_prob:
+    def vertical_flip(self, img, y, vflip_prob):
+        if np.random.random() < vflip_prob:
             img = img[::-1]
             num_coords = y.shape[1] - 1
             if num_coords == 8: # polynom case
@@ -407,7 +419,6 @@ class InputGenerator(object):
         target_area = random_scale * max_w * max_h
         w = np.round(np.sqrt(target_area * random_ratio))
         h = np.round(np.sqrt(target_area / random_ratio))
-        
         x = np.random.random() * (img_w - w)
         y = np.random.random() * (img_h - h)
         
@@ -416,10 +427,7 @@ class InputGenerator(object):
         x_rel = x / img_w
         y_rel = y / img_h
         
-        w = int(w)
-        h = int(h)
-        x = int(x)
-        y = int(y)
+        w, h, x, y = int(w), int(h), int(x), int(y)
         
         # crop image and transform boxes
         new_img = img[y:y+h, x:x+w]
@@ -456,11 +464,11 @@ class InputGenerator(object):
             new_target = np.asarray(new_target).reshape(-1, target.shape[1])
         return new_img, new_target
     
-    def generate(self, debug=False):
+    def generate(self, debug=False, encode=True):
         h, w = self.input_size
-        batch_size = self.batch_size
         mean = np.array([104,117,123])
         gt_util = self.gt_util
+        batch_size = self.batch_size
         num_batches = self.num_batches
         
         inputs, targets = [], []
@@ -498,9 +506,9 @@ class InputGenerator(object):
                     if self.lighting_std:
                         img = self.lighting(img)
                     if self.hflip_prob > 0:
-                        img, y = self.horizontal_flip(img, y)
+                        img, y = self.horizontal_flip(img, y, self.hflip_prob)
                     if self.vflip_prob > 0:
-                        img, y = self.vertical_flip(img, y)
+                        img, y = self.vertical_flip(img, y, self.vflip_prob)
                     if self.add_noise:
                         img = self.noise(img)
                 else:
@@ -527,22 +535,55 @@ class InputGenerator(object):
                     
                 img -= mean[np.newaxis, np.newaxis, :]
                 #img = img / 25.6
-                y = self.prior_util.encode(y)
                 
                 inputs.append(img)
                 targets.append(y)
                 
-                if len(targets) == batch_size or j == len(idxs)-1:
-                    # last batch in epoch can be smaller then batch_size
-                    if j == len(idxs)-1: # forgett last batch
-                        inputs, targets = [], []
-                        break
+                #if len(targets) == batch_size or j == len(idxs)-1: # last batch in epoch can be smaller then batch_size
+                if len(targets) == batch_size:
+                    if encode:
+                        targets = [self.prior_util.encode(y) for y in targets]
+                        targets = np.array(targets, dtype=np.float32)
                     tmp_inputs = np.array(inputs, dtype=np.float32)
-                    tmp_targets = np.array(targets, dtype=np.float32)
+                    tmp_targets = targets
                     inputs, targets = [], []
                     yield tmp_inputs, tmp_targets
+                elif j == len(idxs)-1:
+                    # forgett last batch
+                    inputs, targets = [], []
+                    break
+                    
             print('NEW epoch')
         print('EXIT generator')
+
+
+def pad_image(img, aspect_ratio, gt_data=None):
+    """Padds an image with random pixels to get one with specific 
+    aspect ratio while avoiding distortion of the image content.
+    """
+    src_h, src_w, src_c = img.shape
+    if src_h * aspect_ratio > src_w:
+        new_w = int(src_h * aspect_ratio)
+        new_img = np.random.rand(src_h, new_w, src_c) * 255
+        padding = int((new_w-src_w)/2)
+        new_img[:,padding:padding+src_w,:] = img
+        if gt_data is not None:
+            new_gt_data = np.copy(gt_data)
+            new_gt_data[:,0:-1:2] = new_gt_data[:,0:-1:2] * src_w/new_w + padding/new_w
+            return new_img, new_gt_data
+        else:
+            return new_img
+    else:
+        new_h = int(src_w / aspect_ratio)
+        new_img = np.random.rand(new_h, src_w, src_c) * 255
+        padding = int((new_h-src_h)/2)
+        new_img[padding:padding+src_h,:,:] = img
+        if gt_data is not None:
+            new_gt_data = np.copy(gt_data)
+            new_gt_data[:,1:-1:2] = new_gt_data[:,1:-1:2] * src_h/new_h + padding/new_h
+            return new_img, new_gt_data
+        else:
+            return new_img
 
 
 def preprocess(img, size):
@@ -584,12 +625,12 @@ def preprocess_image(file_name, size=(300,300), lib='skimage'):
         img = PIL.Image.open(file_name)
         img = img.resize(size, PIL.Image.BILINEAR)
         img = np.array(img, dtype='float32')
-        img = img[:, :, (2,1,0)] # RGB to BGR
+        img = img[:,:,(2,1,0)] # RGB to BGR
     elif lib == 'scipy':
         import scipy.misc
         img = scipy.misc.imread(file_name).astype('float32')
         img = scipy.misc.imresize(img, size).astype('float32')
-        img = img[:, :, (2,1,0)] # RGB to BGR
+        img = img[:,:,(2,1,0)] # RGB to BGR
     elif lib == 'opencv':
         import cv2
         h, w = size
@@ -610,7 +651,7 @@ def preprocess_image(file_name, size=(300,300), lib='skimage'):
         img = img * (img_max - img_min) + img_min
         img = img.astype('float32')
         img *= 255 # the reference model operates on images in [0,255] range instead of [0,1]
-        img = img[:, :, (2,1,0)] # RGB to BGR
+        img = img[:,:,(2,1,0)] # RGB to BGR
     
     #from IPython.display import display
     #plt.imshow(img[:, :, (2,1,0)]/255.)
