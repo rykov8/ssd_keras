@@ -46,12 +46,9 @@ def ssd300_body(x):
     x = MaxPool2D(pool_size=3, strides=1, padding='same', name='pool5')(x)
     # FC6
     x = Conv2D(1024, 3, strides=1, dilation_rate=(6, 6), padding='same', name='fc6', activation='relu')(x)
-    # x = Dropout(0.5, name='drop6')(x)
     # FC7
     x = Conv2D(1024, 1, strides=1, padding='same', name='fc7', activation='relu')(x)
     source_layers.append(x)
-    # x = Dropout(0.5, name='drop7')(x)
-    
     # Block 6
     x = Conv2D(256, 1, strides=1, padding='same', name='conv6_1', activation='relu')(x)
     x = Conv2D(512, 3, strides=2, padding='same', name='conv6_2', activation='relu')(x)
@@ -103,12 +100,9 @@ def ssd512_body(x):
     x = MaxPool2D(pool_size=3, strides=1, padding='same', name='pool5')(x)
     # FC6
     x = Conv2D(1024, 3, strides=1, dilation_rate=(6, 6), padding='same', name='fc6', activation='relu')(x)
-    # x = Dropout(0.5, name='drop6')(x)
     # FC7
     x = Conv2D(1024, 1, strides=1, padding='same', name='fc7', activation='relu')(x)
     source_layers.append(x)
-    # x = Dropout(0.5, name='drop7')(x)
-    
     # Block 6
     x = Conv2D(256, 1, strides=1, padding='same', name='conv6_1', activation='relu')(x)
     x = Conv2D(512, 3, strides=2, padding='same', name='conv6_2', activation='relu')(x)
@@ -201,9 +195,10 @@ def SSD300(input_shape=(300, 300, 3), num_classes=21, softmax=True):
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
     # stay compatible with caffe models
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2], [1,2,1/2]]
     model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
     model.steps = [8, 16, 32, 64, 100, 300]
+    model.special_ssd_boxes = True
     
     return model
 
@@ -236,9 +231,10 @@ def SSD512(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
     # stay compatible with caffe models
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,3,1/2,1/3], [1,2,1/2], [1,2,1/2]]
     model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
     model.steps = [8, 16, 32, 64, 128, 256, 512]
+    model.special_ssd_boxes = True
     
     return model
 
@@ -267,10 +263,11 @@ def DSOD300(input_shape=(300, 300, 3), num_classes=21, activation='relu', softma
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2], [1,2,1/2]]
     model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
     model.steps = [8, 16, 32, 64, 100, 300]
-
+    model.special_ssd_boxes = True
+    
     return model
 
 SSD300_dense = DSOD300
@@ -300,10 +297,11 @@ def DSOD512(input_shape=(512, 512, 3), num_classes=21, activation='relu', softma
     # parameters for prior boxes
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,3,1/2,1/3], [1,2,1/2], [1,2,1/2]]
     model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
     model.steps = [8, 16, 32, 64, 128, 256, 512]
-
+    model.special_ssd_boxes = True
+    
     return model
 
 SSD512_dense = DSOD512
@@ -327,8 +325,9 @@ def SSD512_resnet(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
     # stay compatible with caffe models
-    model.aspect_ratios = [[1,2], [1,2,3], [1,2,3], [1,2,3], [1,2,3], [1,2], [1,2]]
+    model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,3,1/2,1/3], [1,2,1/2], [1,2,1/2]]
     model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
     model.steps = [8, 16, 32, 64, 128, 256, 512]
+    model.special_ssd_boxes = True
     
     return model

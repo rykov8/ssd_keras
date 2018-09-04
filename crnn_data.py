@@ -72,12 +72,7 @@ class InputGenerator(object):
     def __init__(self, gt_util, batch_size, alphabet, input_size=(255,32),
                 grayscale=True, max_string_len=30):
         
-        self.gt_util = gt_util
-        self.batch_size = batch_size
-        self.max_string_len = max_string_len
-        self.grayscale = grayscale
-        self.input_size = input_size
-        self.alphabet = alphabet
+        self.__dict__.update(locals())
     
     def generate(self, train=True):
         gt_util = self.gt_util

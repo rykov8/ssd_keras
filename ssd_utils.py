@@ -106,11 +106,11 @@ def non_maximum_suppression(boxes, confs, overlap_threshold, top_k):
         h = np.maximum(0, yy2 - yy1)
         I = w * h 
         
-        #overlap = I / (area[idxs] + eps)
+        overlap = I / (area[idxs] + eps)
         # as in Girshick et. al.
         
-        U = area[idxs] + area[i] - I
-        overlap = I / (U + eps)
+        #U = area[idxs] + area[i] - I
+        #overlap = I / (U + eps)
         
         idxs = idxs[overlap <= overlap_threshold]
         
@@ -123,7 +123,7 @@ class PriorMap(object):
     
     # Arguments / Attributes
         source_layer_name
-        image_size
+        image_size: Tuple with spatial size of model input.
         map_size
         variances
         aspect_ratios: List of aspect ratios for the prior boxes at each 
@@ -131,12 +131,10 @@ class PriorMap(object):
         shift: List of tuples for the displacement of the prior boxes 
             relative to ther location. Each tuple contains an value between 
             -1.0 and 1.0 for x and y direction.
-        flip: Boolean, whether the reciprocal value of the aspect ratios 
-            should also be used.
         clip: Boolean, whether the boxes should be cropped to do not exceed 
             the borders of the input image.
         step
-        minmax_size
+        minmax_size: List of tuples with s_min and s_max values (see paper).
         special_ssd_box: Boolean, wether or not the extra box for aspect 
             ratio 1 is used.
     
@@ -146,18 +144,9 @@ class PriorMap(object):
     def __init__(self, source_layer_name, image_size, map_size, 
                  minmax_size=None, variances=[0.1, 0.1, 0.2, 0.2], 
                  aspect_ratios=[1], shift=None,
-                 flip=True, clip=False, step=None, special_ssd_box=False):
-        self.source_layer_name = source_layer_name
-        self.image_size = image_size # is input size
-        self.map_size = map_size
-        self.variances = variances
-        self.aspect_ratios = aspect_ratios
-        self.shift = shift
-        self.flip = flip
-        self.clip = clip
-        self.step = step
-        self.minmax_size = minmax_size # s_min, s_max
-        self.special_ssd_box = special_ssd_box
+                 clip=False, step=None, special_ssd_box=False):
+        
+        self.__dict__.update(locals())
         
         #self.compute_priors()
         
@@ -168,7 +157,6 @@ class PriorMap(object):
                   'aspect_ratios',
                   'shift',
                   'clip',
-                  'flip',
                   'minmax_size',
                   'special_ssd_box',
                   'num_locations',
@@ -193,12 +181,14 @@ class PriorMap(object):
     def compute_priors(self):
         image_h, image_w = self.image_size
         map_h, map_w = self.map_size
-        #image_w, image_h = self.image_size
-        #map_w, map_h = self.map_size
         min_size, max_size = self.minmax_size
         
         # define centers of prior boxes
         if self.step == None:
+            # TODO: this is a bad idea since we are not always at the same 
+            # loction in the receptive fields, step results form up/downsampling
+            # round to next power of two? base ** round(math.log(num, base))
+            # problem: SL and TB++ models are trained with it
             step_x = image_w / map_w
             step_y = image_h / map_h
             linx = np.linspace(step_x / 2., image_w - step_x / 2., map_w)
@@ -224,9 +214,6 @@ class PriorMap(object):
             if ar == 1 and self.special_ssd_box: # special SSD box
                 box_wh.append([np.sqrt(min_size * max_size), np.sqrt(min_size * max_size)])
                 box_shift.append((0.0,0.0))
-            if not ar == 1 and self.flip:
-                box_wh.append([min_size * np.sqrt(1.0/ar), min_size / np.sqrt(1.0/ar)])
-                box_shift.append(shift[i])
         box_wh = np.asarray(box_wh)
         
         box_shift = np.asarray(box_shift)
@@ -249,24 +236,17 @@ class PriorMap(object):
         
         priors_variances = np.tile(self.variances, (len(priors_xy),1))
         
-        priors = np.concatenate([priors_min_xy, priors_max_xy, priors_variances], axis=1)
-        
-        # normalized prior boxes
-        priors_min_xy_norm = priors_min_xy / (image_w, image_h)
-        priors_max_xy_norm = priors_max_xy / (image_w, image_h)
-        
-        priors_norm = np.concatenate([priors_min_xy_norm, priors_max_xy_norm, priors_variances], axis=1)
-        
         self.box_xy = box_xy
         self.box_wh = box_wh
         self.box_shfit = box_shift
         
         self.priors_xy = priors_xy
         self.priors_wh = priors_wh
+        self.priors_min_xy = priors_min_xy
+        self.priors_max_xy = priors_max_xy
         self.priors_variances = priors_variances
-        self.priors = priors
-        self.priors_norm = priors_norm
-    
+        self.priors = np.concatenate([priors_min_xy, priors_max_xy, priors_variances], axis=1)
+        
     def plot_locations(self):
         xy = self.box_xy
         plt.plot(xy[:,0], xy[:,1], 'r.', markersize=4)
@@ -290,7 +270,7 @@ class PriorUtil(object):
     """Utility for SSD prior boxes.
     """
     def __init__(self, model, aspect_ratios=None, shifts=None,
-            minmax_sizes=None, steps=None, scale=None, special_ssd_boxes=None, flips=None, clips=None):
+            minmax_sizes=None, steps=None, scale=None, special_ssd_boxes=None, clips=None):
         
         source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
         self.source_layers_names = source_layers_names
@@ -336,16 +316,9 @@ class PriorUtil(object):
             if hasattr(model, 'special_ssd_boxes'):
                 special_ssd_boxes = model.special_ssd_boxes
             else:
-                special_ssd_boxes = True
+                special_ssd_boxes = False
         if type(special_ssd_boxes) == bool:
             special_ssd_boxes = [special_ssd_boxes] * num_maps
-        if flips is None:
-            if hasattr(model, 'flips'):
-                flips = model.flips
-            else:
-                flips = True
-        if type(flips) == bool:
-            flips = [flips] * num_maps
         if clips is None:
             if hasattr(model, 'clips'):
                 clips = model.clips
@@ -367,7 +340,6 @@ class PriorUtil(object):
                          shift=shifts[i],
                          step=steps[i],
                          special_ssd_box=special_ssd_boxes[i],
-                         flip=flips[i],
                          clip=clips[i])
             self.prior_maps.append(m)
         self.update_priors()
@@ -375,14 +347,6 @@ class PriorUtil(object):
         self.nms_top_k = 400
         self.nms_thresh = 0.45
         
-        # Tensorflow NMS
-        #self.boxes = tf.placeholder(dtype='float32', shape=(None, 4))
-        #self.scores = tf.placeholder(dtype='float32', shape=(None,))
-        #self.nms = tf.image.non_max_suppression(
-        #    self.boxes, self.scores, self.nms_top_k, 
-        #    iou_threshold=self.nms_thresh)
-        #self.sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
-    
     @property
     def num_maps(self):
         return len(self.prior_maps)
@@ -390,8 +354,11 @@ class PriorUtil(object):
     def update_priors(self):
         priors_xy = []
         priors_wh = []
+        priors_min_xy = []
+        priors_max_xy = []
+        priors_variances = []
         priors = []
-        priors_norm = []
+        
         map_offsets = [0]
         for i in range(len(self.prior_maps)):
             m = self.prior_maps[i]
@@ -402,39 +369,61 @@ class PriorUtil(object):
             # collect prior data
             priors_xy.append(m.priors_xy)
             priors_wh.append(m.priors_wh)
+            priors_min_xy.append(m.priors_min_xy)
+            priors_max_xy.append(m.priors_max_xy)
+            priors_variances.append(m.priors_variances)
             priors.append(m.priors)
-            priors_norm.append(m.priors_norm)
             map_offsets.append(map_offsets[-1]+len(m.priors))
         
         self.priors_xy = np.concatenate(priors_xy, axis=0)
         self.priors_wh = np.concatenate(priors_wh, axis=0)
+        self.priors_min_xy = np.concatenate(priors_min_xy, axis=0)
+        self.priors_max_xy = np.concatenate(priors_max_xy, axis=0)
+        self.priors_variances = np.concatenate(priors_variances, axis=0)
         self.priors = np.concatenate(priors, axis=0)
-        self.priors_norm = np.concatenate(priors_norm, axis=0)
         self.map_offsets = map_offsets
         
+        # normalized prior boxes
+        image_h, image_w = self.image_size
+        self.priors_xy_norm = self.priors_xy / (image_w, image_h)
+        self.priors_wh_norm = self.priors_wh / (image_w, image_h)
+        self.priors_min_xy_norm = self.priors_min_xy / (image_w, image_h)
+        self.priors_max_xy_norm = self.priors_max_xy / (image_w, image_h)
+        self.priors_norm = np.concatenate([self.priors_min_xy_norm, self.priors_max_xy_norm, self.priors_variances], axis=1)
+    
+    
     def encode(self, gt_data, overlap_threshold=0.5, debug=False):
         # calculation is done with normalized sizes
-        
-        num_classes = self.model.num_classes
-        num_priors = self.priors.shape[0]
-        
-        gt_boxes = self.gt_boxes = np.copy(gt_data[:,:4]) # normalized xmin, ymin, xmax, ymax
-        gt_class_idx = np.asarray(gt_data[:,-1], dtype=np.int)
-        gt_one_hot = np.zeros([len(gt_class_idx),num_classes])
-        gt_one_hot[:,gt_class_idx] = 1 # one_hot classes including background
         
         # TODO: empty ground truth
         if gt_data.shape[0] == 0:
             print('gt_data', type(gt_data), gt_data.shape)
 
-        gt_iou = np.array([iou(b, self.priors_norm) for b in gt_boxes]).T
+        num_classes = self.model.num_classes
+        num_priors = self.priors.shape[0]
+
+        gt_boxes = self.gt_boxes = np.copy(gt_data[:,:4]) # normalized xmin, ymin, xmax, ymax
+        gt_class_idx = np.asarray(gt_data[:,-1]+0.5, dtype=np.int)
+        gt_one_hot = np.zeros([len(gt_class_idx),num_classes])
+        gt_one_hot[range(len(gt_one_hot)),gt_class_idx] = 1 # one_hot classes including background
         
-        # assigne gt to priors
+        gt_min_xy = gt_boxes[:,0:2]
+        gt_max_xy = gt_boxes[:,2:4]
+        gt_xy = (gt_boxes[:,2:4] + gt_boxes[:,0:2]) / 2.
+        gt_wh = gt_boxes[:,2:4] - gt_boxes[:,0:2]
+        
+        gt_iou = np.array([iou(b, self.priors_norm) for b in gt_boxes]).T
+        max_idxs = np.argmax(gt_iou, axis=1)
+        
+        priors_xy = self.priors_xy_norm
+        priors_wh = self.priors_wh_norm
+        
+        # assign ground truth to priors
         max_idxs = np.argmax(gt_iou, axis=1)
         max_val = gt_iou[np.arange(num_priors), max_idxs]
         prior_mask = max_val > overlap_threshold
         match_indices = max_idxs[prior_mask]
-
+        
         self.match_indices = dict(zip(list(np.ix_(prior_mask)[0]), list(match_indices)))
 
         # prior labels
@@ -443,19 +432,21 @@ class PriorUtil(object):
         confidence[prior_mask] = gt_one_hot[match_indices]
 
         # compute local offsets from ground truth boxes
-        gt_xy = (gt_boxes[:,2:4] + gt_boxes[:,0:2]) / 2.
-        gt_wh = gt_boxes[:,2:4] - gt_boxes[:,0:2]
         gt_xy = gt_xy[match_indices]
         gt_wh = gt_wh[match_indices]
-        priors_xy = self.priors_xy[prior_mask] / self.image_size
-        priors_wh = self.priors_wh[prior_mask] / self.image_size
+        priors_xy = priors_xy[prior_mask]
+        priors_wh = priors_wh[prior_mask]
+        variances_xy = self.priors[prior_mask,-4:-2]
+        variances_wh = self.priors[prior_mask,-2:]
         offsets = np.zeros((num_priors, 4))
-        offsets[prior_mask, 0:2] = (gt_xy - priors_xy) / priors_wh
-        offsets[prior_mask, 2:4] = np.log(gt_wh / priors_wh)
-        offsets[prior_mask, :] /= self.priors[prior_mask,-4:] # variances
+        offsets[prior_mask,0:2] = (gt_xy - priors_xy) / priors_wh
+        offsets[prior_mask,2:4] = np.log(gt_wh / priors_wh)
+        offsets[prior_mask,0:2] /= variances_xy
+        offsets[prior_mask,2:4] /= variances_wh
 
         return np.concatenate([offsets, confidence], axis=1)
-        
+    
+    
     def decode(self, model_output, confidence_threshold=0.01, keep_top_k=200, fast_nms=True, sparse=True):
         # calculation is done with normalized sizes
         
@@ -474,7 +465,6 @@ class PriorUtil(object):
             priors_xy = self.priors_xy / self.image_size
             priors_wh = self.priors_wh / self.image_size
             priors_variances = self.priors[:,-4:]
-        #print('offsets', len(confidence), len(prior_mask))
         
         offsets = model_output[:,:4]
         confidence = model_output[:,4:]
@@ -498,13 +488,6 @@ class PriorUtil(object):
             boxes_to_process = boxes[mask]
             if len(boxes_to_process) > 0:
                 confs_to_process = confidence[mask, c]
-                
-                # Tensorflow NMS
-                #feed_dict = {
-                #self.boxes: boxes_to_process,
-                #    self.scores: confs_to_process
-                #}
-                #idx = self.sess.run(self.nms, feed_dict=feed_dict)
                 
                 if fast_nms:
                     idx = non_maximum_suppression(
@@ -551,7 +534,7 @@ class PriorUtil(object):
         for box in boxes:
             xy_rec = to_rec(box[:4], image_size)
             ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor='b', linewidth=2))
-        plt.plot(boxes_x, boxes_y, 'bo',  markersize=8)
+        plt.plot(boxes_x, boxes_y, 'bo',  markersize=6)
         
         # prior boxes
         for idx, box_idx in self.match_indices.items():
@@ -599,8 +582,6 @@ class PriorUtil(object):
     def print_gt_stats(self):
         # TODO
         pass
-    
-    # TODO: multiScaleOutput
 
 
 def load_weights(model, filepath, layer_names=None):
@@ -654,10 +635,7 @@ def calc_memory_usage(model, batch_size=1):
 
     shapes_mem_count = 0
     for l in model.layers:
-        if type(l.output_shape[0]) is tuple:
-            shapes_mem_count += np.sum([np.prod(s[1:]) for s in l.output_shape])
-        else:
-            shapes_mem_count += np.prod(l.output_shape[1:])
+        shapes_mem_count += np.sum([np.sum([np.prod(s[1:]) for s in n.output_shapes]) for n in l._inbound_nodes])
         
     trainable_count = np.sum([K.count_params(p) for p in set(model.trainable_weights)])
     non_trainable_count = np.sum([K.count_params(p) for p in set(model.non_trainable_weights)])
@@ -671,16 +649,14 @@ def calc_memory_usage(model, batch_size=1):
         else:
             break
     print('model memory usage %8.2f %s' % (total_memory, s))
-
-
+    
 def count_parameters(model):
     trainable_count = int(np.sum([K.count_params(p) for p in set(model.trainable_weights)]))
     non_trainable_count = int(np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
     
     print('trainable     %16i' %(trainable_count))
     print('non-trainable %16i' %(non_trainable_count))
-
-
+    
 def plot_parameter_statistic(model, layer_types=['Dense', 'Conv2D'], trainable=True, non_trainable=False, outputs=False):
     parameter_count = []
     names = []
@@ -689,7 +665,7 @@ def plot_parameter_statistic(model, layer_types=['Dense', 'Conv2D'], trainable=T
             continue
         count = 0
         if outputs:
-            count += np.prod(l.output_shape[1:])
+            count += np.sum([np.sum([np.prod(s[1:]) for s in n.output_shapes]) for n in l._inbound_nodes])
         if trainable:
             count += np.sum([K.count_params(p) for p in set(l.trainable_weights)])
         if non_trainable:
@@ -720,6 +696,7 @@ def calc_receptive_field(model, layer_name, verbose=False):
         es: Effictive stides in the input image.
         offset: Center of the receptive field associated with the first unit (x, y).
     """
+    # TODO...
     
     fstr = '%-20s %-16s %-10s %-10s %-10s %-16s %-10s %-16s'
     if verbose:

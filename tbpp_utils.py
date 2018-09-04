@@ -14,6 +14,10 @@ class PriorUtil(SSDPriorUtil):
     def encode(self, gt_data, overlap_threshold=0.5, debug=False):
         # calculation is done with normalized sizes
         
+        # TODO: empty ground truth
+        if gt_data.shape[0] == 0:
+            print('gt_data', type(gt_data), gt_data.shape)
+        
         num_classes = 2
         num_priors = self.priors.shape[0]
         
@@ -27,13 +31,9 @@ class PriorUtil(SSDPriorUtil):
         gt_ymax = np.max(gt_data[:,1:8:2], axis=1)
         gt_boxes = self.gt_boxes = np.array([gt_xmin,gt_ymin,gt_xmax,gt_ymax]).T # normalized xmin, ymin, xmax, ymax
         
-        gt_class_idx = np.asarray(gt_data[:,-1], dtype=np.int16)
+        gt_class_idx = np.asarray(gt_data[:,-1]+0.5, dtype=np.int)
         gt_one_hot = np.zeros([len(gt_class_idx),num_classes])
-        gt_one_hot[:,gt_class_idx] = 1 # one_hot classes including background
-
-        # TODO: empty ground truth
-        if gt_data.shape[0] == 0:
-            print('gt_data', type(gt_data), gt_data.shape)
+        gt_one_hot[range(len(gt_one_hot)),gt_class_idx] = 1 # one_hot classes including background
 
         gt_iou = np.array([iou(b, self.priors_norm) for b in gt_boxes]).T
         
@@ -64,10 +64,10 @@ class PriorUtil(SSDPriorUtil):
         
         # compute local offsets for 
         offsets = np.zeros((num_priors, 4))
-        offsets[prior_mask, 0:2] = (gt_xy - priors_xy) / priors_wh
-        offsets[prior_mask, 2:4] = np.log(gt_wh / priors_wh)
-        offsets[prior_mask, 0:2] /= variances_xy
-        offsets[prior_mask, 2:4] /= variances_wh
+        offsets[prior_mask,0:2] = (gt_xy - priors_xy) / priors_wh
+        offsets[prior_mask,2:4] = np.log(gt_wh / priors_wh)
+        offsets[prior_mask,0:2] /= variances_xy
+        offsets[prior_mask,2:4] /= variances_wh
         
         # compute local offsets for quadrilaterals
         offsets_quads = np.zeros((num_priors, 8))

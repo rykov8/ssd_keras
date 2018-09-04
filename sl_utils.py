@@ -113,8 +113,7 @@ class PriorUtil(object):
                          image_size=self.image_size,
                          map_size=map_size,
                          minmax_size=(a_l, a_l),
-                         aspect_ratios=[1],
-                         flip=False)
+                         aspect_ratios=[1])
             m.a_l = m.map_size[0]
             self.prior_maps.append(m)
         self.update_priors()

@@ -36,7 +36,7 @@ class Normalize(Layer):
         scale: Default feature scale.
 
     # Input shape
-        4D tensor with shape: (samples, channels, rows, cols)
+        4D tensor with shape: (samples, rows, cols, channels)
 
     # Output shape
         Same as input

@@ -85,12 +85,11 @@ def TB300(input_shape=(300, 300, 3), num_classes=2, softmax=True):
     num_maps = len(source_layers)
     model.image_size = input_shape[:2]
     model.source_layers = source_layers
-    model.aspect_ratios = [[1, 2, 3, 5, 7, 10, 1, 2, 3, 5, 7, 10]] * num_maps
+    model.aspect_ratios = [[1, 2, 3, 5, 7, 10] * 2] * num_maps
     #model.shifts = [[(0.0, 0.0)] * 6 + [(0.0, 1.0)] * 6] * num_maps
     model.shifts = [[(0.0, -0.5)] * 6 + [(0.0, 0.5)] * 6] * num_maps
     #model.minmax_sizes = [(30, 60), (60, 111), (111, 162), (162, 213), (213, 264), (264, 315)]
-    model.special_ssd_boxes = False
-    model.flips = False
+    model.steps = [8, 16, 32, 64, 128, 256, 512]
     
     return model
 
