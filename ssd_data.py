@@ -164,7 +164,11 @@ class BaseGTUtility(object):
     def sample_batch(self, batch_size, batch_index, input_size=(512,512), preserve_aspect_ratio=False):
         h, w = input_size
         aspect_ratio = w/h
-        idxs = np.arange(batch_size*batch_index, batch_size*(batch_index+1))
+        idxs = np.arange(min(batch_size*batch_index, self.num_samples), 
+                         min(batch_size*(batch_index+1), self.num_samples))
+        
+        if len(idxs) == 0:
+            print('WARNING: empty batch')
         
         inputs = []
         data = []
@@ -179,34 +183,48 @@ class BaseGTUtility(object):
         
         return inputs, data
     
-    @staticmethod
-    def split(gtu, split=0.8):
+    def subset(self, start_idx=0, end_idx=-1):
+        gtu = BaseGTUtility()
+        gtu.gt_path = self.gt_path
+        gtu.image_path = self.image_path
+        gtu.classes = self.classes
+        
+        gtu.image_names = self.image_names[start_idx:end_idx]
+        gtu.data = self.data[start_idx:end_idx]
+        if hasattr(gtu, 'text'):
+            gtu.text = self.text[start_idx:end_idx]
+        
+        gtu.init()
+        
+        return gtu
+    
+    def split(self, split=0.8):
         gtu1 = BaseGTUtility()
-        gtu1.gt_path = gtu.gt_path
-        gtu1.image_path = gtu.image_path
-        gtu1.classes = gtu.classes
+        gtu1.gt_path = self.gt_path
+        gtu1.image_path = self.image_path
+        gtu1.classes = self.classes
         
         gtu2 = BaseGTUtility()
-        gtu2.gt_path = gtu.gt_path
-        gtu2.image_path = gtu.image_path
-        gtu2.classes = gtu.classes
+        gtu2.gt_path = self.gt_path
+        gtu2.image_path = self.image_path
+        gtu2.classes = self.classes
         
-        n = int(round(split * len(gtu.image_names)))
-        gtu1.image_names = gtu.image_names[:n]
-        gtu2.image_names = gtu.image_names[n:]
-        gtu1.data = gtu.data[:n]
-        gtu2.data = gtu.data[n:]
-        if hasattr(gtu, 'text'):
-            gtu1.text = gtu.text[:n]
-            gtu2.text = gtu.text[n:]
+        n = int(round(split * len(self.image_names)))
+        gtu1.image_names = self.image_names[:n]
+        gtu2.image_names = self.image_names[n:]
+        gtu1.data = self.data[:n]
+        gtu2.data = self.data[n:]
+        if hasattr(self, 'text'):
+            gtu1.text = self.text[:n]
+            gtu2.text = self.text[n:]
         
         gtu1.init()
         gtu2.init()
-        
         return gtu1, gtu2
 
-    @staticmethod
-    def merge(gtu1, gtu2):
+    def merge(self, gtu2):
+        gtu1 = self
+        
         if len(set(gtu1.classes)^set(gtu2.classes)) > 0:
             raise Exception('Classes are different')
         gtu = BaseGTUtility()
@@ -238,13 +256,10 @@ class BaseGTUtility(object):
             gtu.text = gtu1.text + gtu2.text
         
         gtu.init()
-        
         return gtu
     
-    @staticmethod
-    def convert(gtu, new_classes, conversion_map=None):
-        
-        classes_lower = [s.lower() for s in gtu.classes]
+    def convert(self, new_classes, conversion_map=None):
+        classes_lower = [s.lower() for s in self.classes]
         new_classes_lower = [s.lower() for s in new_classes]
         
         # do renaming if conversion map is provided
@@ -263,41 +278,40 @@ class BaseGTUtility(object):
             else:
                 old_to_new.append(None)
         
-        gtu_new = BaseGTUtility()
-        gtu_new.gt_path = gtu.gt_path
-        gtu_new.image_path = gtu.image_path
-        gtu_new.classes = new_classes
+        gtu = BaseGTUtility()
+        gtu.gt_path = self.gt_path
+        gtu.image_path = self.image_path
+        gtu.classes = new_classes
         
-        num_old_classes = len(gtu.classes)
+        num_old_classes = len(self.classes)
         num_new_classes = len(new_classes)
         
-        gtu_new.image_names = []
-        gtu_new.data = []
-        if hasattr(gtu, 'text'):
-            gtu_new.text = []
+        gtu.image_names = []
+        gtu.data = []
+        if hasattr(self, 'text'):
+            gtu.text = []
         
-        for i in range(len(gtu.image_names)):
+        for i in range(len(self.image_names)):
             boxes = []
-            for j in range(len(gtu.data[i])):
-                #old_class_idx = np.argmax(gtu.data[i][j,-num_old_classes:])
-                old_class_idx = int(gtu.data[i][j,-1])
+            for j in range(len(self.data[i])):
+                #old_class_idx = np.argmax(self.data[i][j,-num_old_classes:])
+                old_class_idx = int(self.data[i][j,-1])
                 new_class_idx = old_to_new[old_class_idx]
                 if new_class_idx is not None:
                     #class_one_hot = [0] * num_new_classes
                     #class_one_hot[new_class_idx] = 1
-                    box = gtu.data[i][j,:-1]
+                    box = self.data[i][j,:-1]
                     box = list(box) + [new_class_idx]
                     boxes.append(box)
             if len(boxes) > 0:
                 boxes = np.asarray(boxes)
-                gtu_new.data.append(boxes)
-                gtu_new.image_names.append(gtu.image_names[i])
-                if hasattr(gtu, 'text'):
-                    gtu_new.text.append(gtu.text[i])
+                gtu.data.append(boxes)
+                gtu.image_names.append(self.image_names[i])
+                if hasattr(self, 'text'):
+                    gtu.text.append(self.text[i])
         
-        gtu_new.init()
-        
-        return gtu_new
+        gtu.init()
+        return gtu
 
 
 class InputGenerator(object):

@@ -144,7 +144,7 @@ class GTUtility(BaseGTUtility):
             ['tvmonitor',    'tv',           ],
         ]
         
-        return GTUtility.convert(self, coco_classes, voc_to_coco_map)
+        return self.convert(coco_classes, voc_to_coco_map)
 
 
 if __name__ == '__main__':

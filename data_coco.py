@@ -123,7 +123,7 @@ class GTUtility(BaseGTUtility):
             ['tv',           'tvmonitor'     ],
         ]
         
-        return GTUtility.convert(self, voc_classes, coco_to_voc_map)
+        return self.convert(voc_classes, coco_to_voc_map)
 
 
 if __name__ == '__main__':
