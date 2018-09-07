@@ -1,6 +1,8 @@
 checkpoints/*
 data/*
 models/*
+plots/*
+uploads/*
 
 
 .DS_Store
