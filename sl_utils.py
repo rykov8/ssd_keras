@@ -562,7 +562,7 @@ class PriorUtil(object):
         
         return results
     
-    def plot_neighbors(self, map_idx, location_idxs=[], inter_layer=True, cross_layer=True):
+    def plot_neighbors(self, map_idx, location_idxs=[], inter_layer=True, cross_layer=True, color='r'):
         """Draw the linked neighborhood for given locations in a prior map.
         
         # Arguments
@@ -578,14 +578,14 @@ class PriorUtil(object):
                 x, y = m.box_xy[i]
                 for n_idx in m.inter_layer_neighbors_idxs[i][m.inter_layer_neighbors_valid[i]]:
                     n_x, n_y = m.box_xy[n_idx]
-                    plt.plot([x, n_x], [y, n_y], '-.r', linewidth=1)
+                    plt.plot([x, n_x], [y, n_y], '-.', color=color, linewidth=2)
         if cross_layer and map_idx > 0:
             n_m = self.prior_maps[map_idx-1]
             for i in location_idxs:
                 x, y = m.box_xy[i]
                 for n_idx in m.cross_layer_neighbors_idxs[i][m.cross_layer_neighbors_valid[i]]:
                     n_x, n_y = n_m.box_xy[n_idx]
-                    plt.plot([x, n_x], [y, n_y], '-.r', linewidth=1)
+                    plt.plot([x, n_x], [y, n_y], '-.', color=color, linewidth=2)
     
     def plot_gt(self):
         ax = plt.gca()

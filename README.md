@@ -58,15 +58,13 @@ Pretrained SSD models can be converted from the [original Caffe implementation](
 PASCAL VOC 07+12+COCO SSD300* from Caffe implementation
 
 #### [Converted SSD512 VOC](http://83.169.39.135/ssd_detectors/ssd512_voc_weights_fixed.zip)
-PASCAL VOC 07+12+COCO SSD512* from Caffe implementation  
-may require some fine tuning to achieve the same results
+PASCAL VOC 07+12+COCO SSD512* from Caffe implementation
 
 #### [Converted SSD300 COCO](http://83.169.39.135/ssd_detectors/ssd300_coco_weights_fixed.zip)
-COCO trainval35k SSD300*
+COCO trainval35k SSD300* from Caffe implementation
 
 #### [Converted SSD512 COCO](http://83.169.39.135/ssd_detectors/ssd512_coco_weights_fixed.zip)
-COCO trainval35k SSD512*  
-may require some fine tuning to achieve the same results
+COCO trainval35k SSD512* from Caffe implementation
 
 #### [SegLink](http://83.169.39.135/ssd_detectors/201711071436_sl512_synthtext.zip)
 initialized with converted SSD512 weights  

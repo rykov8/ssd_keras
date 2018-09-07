@@ -15,7 +15,6 @@ from ssd_layers import Normalize
 from ssd_model_dense import dsod300_body, dsod512_body
 from ssd_model_resnet import ssd512_resnet_body
 
-
 def ssd300_body(x):
     
     source_layers = []
@@ -51,7 +50,8 @@ def ssd300_body(x):
     source_layers.append(x)
     # Block 6
     x = Conv2D(256, 1, strides=1, padding='same', name='conv6_1', activation='relu')(x)
-    x = Conv2D(512, 3, strides=2, padding='same', name='conv6_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(512, 3, strides=2, padding='valid', name='conv6_2', activation='relu')(x)
     source_layers.append(x)
     # Block 7
     x = Conv2D(128, 1, strides=1, padding='same', name='conv7_1', activation='relu')(x)
@@ -60,11 +60,11 @@ def ssd300_body(x):
     source_layers.append(x)
     # Block 8
     x = Conv2D(128, 1, strides=1, padding='same', name='conv8_1', activation='relu')(x)
-    x = Conv2D(256, 3, strides=2, padding='same', name='conv8_2', activation='relu')(x)
+    x = Conv2D(256, 3, strides=1, padding='valid', name='conv8_2', activation='relu')(x)
     source_layers.append(x)
     # Block 9
     x = Conv2D(128, 1, strides=1, padding='same', name='conv9_1', activation='relu')(x)
-    x = Conv2D(256, 3, strides=2, padding='valid', name='conv9_2', activation='relu')(x)
+    x = Conv2D(256, 3, strides=1, padding='valid', name='conv9_2', activation='relu')(x)
     source_layers.append(x)
     
     return source_layers
@@ -105,23 +105,28 @@ def ssd512_body(x):
     source_layers.append(x)
     # Block 6
     x = Conv2D(256, 1, strides=1, padding='same', name='conv6_1', activation='relu')(x)
-    x = Conv2D(512, 3, strides=2, padding='same', name='conv6_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(512, 3, strides=2, padding='valid', name='conv6_2', activation='relu')(x)
     source_layers.append(x)
     # Block 7
     x = Conv2D(128, 1, strides=1, padding='same', name='conv7_1', activation='relu')(x)
-    x = Conv2D(256, 3, strides=2, padding='same', name='conv7_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(256, 3, strides=2, padding='valid', name='conv7_2', activation='relu')(x)
     source_layers.append(x)
     # Block 8
     x = Conv2D(128, 1, strides=1, padding='same', name='conv8_1', activation='relu')(x)
-    x = Conv2D(256, 3, strides=2, padding='same', name='conv8_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(256, 3, strides=2, padding='valid', name='conv8_2', activation='relu')(x)
     source_layers.append(x)
     # Block 9
     x = Conv2D(128, 1, strides=1, padding='same', name='conv9_1', activation='relu')(x)
-    x = Conv2D(256, 3, strides=2, padding='same', name='conv9_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(256, 3, strides=2, padding='valid', name='conv9_2', activation='relu')(x)
     source_layers.append(x)
     # Block 10 
     x = Conv2D(128, 1, strides=1, padding='same', name='conv10_1', activation='relu')(x)
-    x = Conv2D(256, 4, strides=2, padding='same', name='conv10_2', activation='relu')(x)
+    x = ZeroPadding2D((1,1))(x)
+    x = Conv2D(256, 4, strides=2, padding='valid', name='conv10_2', activation='relu')(x)
     source_layers.append(x)
     
     return source_layers
@@ -129,7 +134,6 @@ def ssd512_body(x):
 
 def multibox_head(source_layers, num_priors, num_classes, normalizations=None, softmax=True):
 
-    postfix = '' if num_classes == 21 else '_%i'%num_classes
     class_activation = 'softmax' if softmax else 'sigmoid'
 
     mbox_conf = []
@@ -144,13 +148,13 @@ def multibox_head(source_layers, num_priors, num_classes, normalizations=None, s
             x = Normalize(normalizations[i], name=name)(x)
             
         # confidence
-        name1 = name + '_mbox_conf' + postfix
+        name1 = name + '_mbox_conf'
         x1 = Conv2D(num_priors[i] * num_classes, 3, padding='same', name=name1)(x)
         x1 = Flatten(name=name1+'_flat')(x1)
         mbox_conf.append(x1)
 
         # location
-        name2 = name + '_mbox_loc' + postfix
+        name2 = name + '_mbox_loc'
         x2 = Conv2D(num_priors[i] * 4, 3, padding='same', name=name2)(x)
         x2 = Flatten(name=name2+'_flat')(x2)
         mbox_loc.append(x2)
@@ -232,7 +236,8 @@ def SSD512(input_shape=(512, 512, 3), num_classes=21, softmax=True):
     model.source_layers = source_layers
     # stay compatible with caffe models
     model.aspect_ratios = [[1,2,1/2], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,1/2,3,1/3], [1,2,3,1/2,1/3], [1,2,1/2], [1,2,1/2]]
-    model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
+    #model.minmax_sizes = [(35, 76), (76, 153), (153, 230), (230, 307), (307, 384), (384, 460), (460, 537)]
+    model.minmax_sizes = [(20.48, 51.2), (51.2, 133.12), (133.12, 215.04), (215.04, 296.96), (296.96, 378.88), (378.88, 460.8), (460.8, 542.72)]
     model.steps = [8, 16, 32, 64, 128, 256, 512]
     model.special_ssd_boxes = True
     
