@@ -203,4 +203,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
 
-# ffmpeg -y -i sl_end2end_record.avi -vcodec mpeg4 -b:v 2400k -flags +aic+mv4 sl_end2end_record.mp4
+# ffmpeg -y -i sl_end2end_record.avi -c:v libx264 -b:v 2400k -preset slow -movflags +faststart -pix_fmt yuv420p sl_end2end_record.mp4
