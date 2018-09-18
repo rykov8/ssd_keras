@@ -22,7 +22,7 @@ if __name__ == '__main__':
     input_shape = (512,512,3)
     weights_path = './checkpoints/201711132011_dsodsl512_synthtext/weights.001.h5'
     segment_threshold = 0.55
-    link_threshold = 0.54
+    link_threshold = 0.40
     
     sl_graph = tf.Graph()
     with sl_graph.as_default():
@@ -32,7 +32,8 @@ if __name__ == '__main__':
             prior_util = PriorUtil(sl_model)
             sl_model.load_weights(weights_path, by_name=True)
     
-    input_width = 256
+    #input_width = 256
+    input_width = 384
     input_height = 32
     weights_path = './checkpoints/201806190711_crnn_gru_synthtext/weights.300000.h5'
     
@@ -46,6 +47,8 @@ if __name__ == '__main__':
     # To test on webcam 0, /dev/video0
     video_path = 0
     start_frame = 0
+    record = True
+    record_file_name = 'sl_end2end_record.avi'
     try:
         vid = cv2.VideoCapture(video_path)
         if not vid.isOpened():
@@ -66,6 +69,10 @@ if __name__ == '__main__':
         
         input_size = input_shape[:2]
         
+        record_buffer = []
+        record_timestamps = []
+        init_time = timer()
+        
         while True:
             retval, img = vid.read()
             if not retval:
@@ -83,14 +90,6 @@ if __name__ == '__main__':
             img1 = np.copy(img)
             img2 = np.zeros_like(img)
             
-            for r in result:
-                xy = rbox_to_polygon(r[:5])
-                xy = xy / input_size * [vid_w, vid_h]
-                xy = xy.reshape((-1,1,2))
-                xy = np.round(xy)
-                xy = xy.astype(np.int32)
-                cv2.polylines(img1, [xy], True, (0,0,255))
-                
             # calculate fps
             curr_time = timer()
             exec_time = curr_time - prev_time
@@ -101,10 +100,6 @@ if __name__ == '__main__':
                 accum_time = accum_time - 1
                 fps = "FPS: " + str(curr_fps)
                 curr_fps = 0
-            
-            # draw fps
-            cv2.rectangle(img1, (0,0), (50, 17), (255,255,255), -1)
-            cv2.putText(img1, fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
             rboxes = result[:,:5]
             
@@ -117,9 +112,7 @@ if __name__ == '__main__':
                 boxes = np.flip(boxes, axis=1) # TODO: fix order of points, why?
                 boxes = np.reshape(boxes, (-1, 8))
                 
-                boxes_mask_a = np.array([b[2] > b[3] for b in rboxes]) # width > height, in square world
-                boxes_mask_b = np.array([not (np.any(b < 0) or np.any(b > 512)) for b in boxes]) # box inside image
-                boxes_mask = np.logical_and(boxes_mask_a, boxes_mask_b)
+                boxes_mask = np.array([not (np.any(b < 0-10) or np.any(b > 512+10)) for b in boxes]) # box inside image
                 
                 boxes = boxes[boxes_mask]
                 rboxes = rboxes[boxes_mask]
@@ -127,7 +120,15 @@ if __name__ == '__main__':
                 if len(boxes) == 0:
                     boxes = np.empty((0,8))
                 
-                words = crop_words(img, boxes/512, input_height, width=input_width, grayscale=True)
+                #for b in boxes:
+                #    xy = b.reshape((-1,1,2)) / input_size * [vid_w, vid_h]
+                #    xy = np.round(xy)
+                #    xy = xy.astype(np.int32)
+                #    cv2.polylines(img1, [xy], True, (0,0,255))
+                
+                boxes = np.clip(boxes/512, 0, 1)
+                
+                words = crop_words(img, boxes, input_height, width=input_width, grayscale=True)
                 words = np.asarray([w.transpose(1,0,2) for w in words])
                 
                 if len(words) > 0:
@@ -140,16 +141,66 @@ if __name__ == '__main__':
                 xy = xy / input_size * [vid_w, vid_h]
                 
                 for i in range(len(words)):
-                    chars = [alphabet[c] for c in np.argmax(res_crnn[i], axis=1)]
-                    res_str = decode(chars)
-                    #cv2.imwrite('croped_word_%03i.png' % (i), words[i])
-                    cv2.putText(img2, res_str, tuple(xy[i].astype(int)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
+                    idxs = np.argmax(res_crnn[i], axis=1)
+                    confs = res_crnn[i][range(len(idxs)),idxs]
+                    non_blank_mask = idxs != len(alphabet)-1
+                    
+                    if np.any(non_blank_mask):
+                        mean_conf = np.mean(confs[non_blank_mask])
+                        chars = [alphabet[c] for c in idxs]
+                        res_str = decode(chars)
+                        
+                        # filter based on recognition threshold
+                        #if mean_conf > 0.7-0.4*np.exp(-0.1*np.sum(non_blank_mask)):
+                        if mean_conf > 0.6:
+                            b = boxes[i].reshape((-1,1,2)) * [vid_w, vid_h]
+                            b = np.asarray(np.round(b), dtype=np.int32)
+                            cv2.polylines(img1, [b], True, (0,0,255))
+                            
+                            #cv2.imwrite('croped_word_%03i.png' % (i), words[i])
+                            cv2.putText(img2, res_str, tuple(xy[i].astype(int)), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
+                        else:
+                            #print('drop %5.3f %s' % (mean_conf, res_str))
+                            pass
             
-            cv2.imshow("SegLink detection", np.concatenate((img1, img2), axis=1))
-            cv2.waitKey(10)
+            # draw fps
+            cv2.rectangle(img1, (0,0), (50, 17), (255,255,255), -1)
+            cv2.putText(img1, fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
-        
+            img = np.concatenate((img1, img2), axis=1)
+            
+            cv2.imshow("SegLink detection", img)
+            
+            if record:
+                record_buffer.append(img)
+                record_timestamps.append(timer()-init_time)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                if record:
+                    print('write viedo file: %s' % (record_file_name))
+                    fourcc = cv2.VideoWriter_fourcc(*'HFYU') # losseless
+                    output_size = (record_buffer[0].shape[1], record_buffer[0].shape[0])
+                    output_framerate = 20.0
+                    out = cv2.VideoWriter(record_file_name, fourcc, output_framerate, output_size)
+                    #for i in range(len(record_buffer)):
+                    #    out.write(record_buffer[i])
+                    i = -1
+                    for t in np.arange(0, record_timestamps[-1], 1/output_framerate):
+                        if i == -1 and t > record_timestamps[0]:
+                            i += 1
+                        elif t > record_timestamps[i]:
+                            i += 1
+                        
+                        if i == -1:
+                            output_img = np.zeros_like(record_buffer[0])
+                        else:
+                            output_img = record_buffer[i]
+                        out.write(output_img)
+                    out.release()
+                break
+            
     except KeyboardInterrupt:
         pass
-    
+
+# ffmpeg -y -i sl_end2end_record.avi -vcodec mpeg4 -b:v 2400k -flags +aic+mv4 sl_end2end_record.mp4
