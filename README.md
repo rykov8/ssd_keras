@@ -103,27 +103,37 @@ word recognition rate         0.858
 ## Demo images
 
 #### SSD on PASCAL VOC 2007 test
+<p float="left">
 <img src="./images/ssd_result1.jpg" width="256" />
 <img src="./images/ssd_result3.jpg" width="256" />
 <img src="./images/ssd_result5.jpg" width="256" />
+</p>
 
 #### SegLink with DenseNet on SynthText
+<p float="left">
 <img src="./images/dsodsl_predition1.jpg" width="384" />
 <img src="./images/dsodsl_combining1.jpg" width="384" />
+</p>
 
+<p float="left">
 <img src="./images/dsodsl_result1.jpg" width="256" />
 <img src="./images/dsodsl_result3.jpg" width="256" />
 <img src="./images/dsodsl_result5.jpg" width="256" />
+</p>
 
 #### TextBoxes++ with DenseNet on SynthText
+<p float="left">
 <img src="./images/dsodtbpp_result1.jpg" width="256" />
 <img src="./images/dsodtbpp_result2.jpg" width="256" />
 <img src="./images/dsodtbpp_result3.jpg" width="256" />
+</p>
 
 #### SegLink with DenseNet, Focal Loss and RCNN end-to-end on SynthText
+<p float="left">
 <img src="./images/dsodslcrnn_result1.jpg" width="256" />
 <img src="./images/dsodslcrnn_result2.jpg" width="256" />
 <img src="./images/dsodslcrnn_result4.jpg" width="256" />
+</p>
 
 #### SegLink with DenseNet, Focal Loss and RCNN end-to-end real-time recogniton
 [<img src="./images/dsodslcrnn_end2end_record_preview.jpg" width="768" />](http://83.169.39.135/ssd_detectors/dsodslcrnn_end2end_record.mp4)
