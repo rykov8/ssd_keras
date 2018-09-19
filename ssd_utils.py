@@ -274,7 +274,8 @@ class PriorUtil(object):
     """Utility for SSD prior boxes.
     """
     def __init__(self, model, aspect_ratios=None, shifts=None,
-            minmax_sizes=None, steps=None, scale=None, special_ssd_boxes=None, clips=None):
+            minmax_sizes=None, steps=None, scale=None, clips=None, 
+            special_ssd_boxes=None, ssd_assignment=None):
         
         source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
         self.source_layers_names = source_layers_names
@@ -290,11 +291,13 @@ class PriorUtil(object):
                 aspect_ratios = model.aspect_ratios
             else:
                 aspect_ratios = [[1]] * num_maps
+        
         if shifts is None:
             if hasattr(model, 'shifts'):
                 shifts = model.shifts
             else:
                 shifts = [None] * num_maps
+        
         if minmax_sizes is None:
             if hasattr(model, 'minmax_sizes'):
                 minmax_sizes = model.minmax_sizes
@@ -305,24 +308,20 @@ class PriorUtil(object):
                 max_ratio = 100 # 90
                 s = np.linspace(min_ratio, max_ratio, num_maps+1) * min_dim / 100.
                 minmax_sizes = [(round(s[i]), round(s[i+1])) for i in range(len(s)-1)]
+        
         if scale is None:
             if hasattr(model, 'scale'):
                 scale = model.scale
             else:
                 scale = 1.0
         minmax_sizes = np.array(minmax_sizes) * scale
+        
         if steps is None:
             if hasattr(model, 'steps'):
                 steps = model.steps
             else:
                 steps = [None] * num_maps
-        if special_ssd_boxes is None:
-            if hasattr(model, 'special_ssd_boxes'):
-                special_ssd_boxes = model.special_ssd_boxes
-            else:
-                special_ssd_boxes = False
-        if type(special_ssd_boxes) == bool:
-            special_ssd_boxes = [special_ssd_boxes] * num_maps
+        
         if clips is None:
             if hasattr(model, 'clips'):
                 clips = model.clips
@@ -330,6 +329,21 @@ class PriorUtil(object):
                 clips = False
         if type(clips) == bool:
             clips = [clips] * num_maps
+        
+        if special_ssd_boxes is None:
+            if hasattr(model, 'special_ssd_boxes'):
+                special_ssd_boxes = model.special_ssd_boxes
+            else:
+                special_ssd_boxes = False
+        if type(special_ssd_boxes) == bool:
+            special_ssd_boxes = [special_ssd_boxes] * num_maps
+        
+        if ssd_assignment is None:
+            if hasattr(model, 'ssd_assignment'):
+                ssd_assignment = model.ssd_assignment
+            else:
+                ssd_assignment = True
+        self.ssd_assignment = ssd_assignment
         
         self.prior_maps = []
         for i in range(num_maps):
@@ -423,10 +437,36 @@ class PriorUtil(object):
         priors_wh = self.priors_wh_norm
 
         # assign ground truth to priors
-        max_idxs = np.argmax(gt_iou, axis=1)
-        max_val = gt_iou[np.arange(num_priors), max_idxs]
-        prior_mask = max_val > overlap_threshold
-        match_indices = max_idxs[prior_mask]
+        if self.ssd_assignment:
+            # original ssd assignment rule
+            max_idxs = np.argmax(gt_iou, axis=1)
+            max_val = gt_iou[np.arange(num_priors), max_idxs]
+            prior_mask = max_val > overlap_threshold
+            match_indices = max_idxs[prior_mask]
+        else:
+            prior_area = np.product(priors_wh, axis=-1)[:,None]
+            gt_area = np.product(gt_wh, axis=-1)[:,None]
+            
+            priors_ar = priors_wh[:,0] / priors_wh[:,1]
+            gt_ar = gt_wh[:,0] / gt_wh[:,1]
+            
+            match_mask = np.array([np.concatenate([
+                    priors_xy >= gt_min_xy[i],
+                    priors_xy <= gt_max_xy[i],
+                    #priors_wh >= 0.5 * gt_wh[i],
+                    #priors_wh <= 2.0 * gt_wh[i],
+                    #prior_area >= 0.25 * gt_area[i],
+                    #prior_area <= 4.0 * gt_area[i],
+                    prior_area >= 0.0625 * gt_area[i],
+                    prior_area <= 1.0 * gt_area[i],
+                    #((priors_ar < 1.0) == (gt_ar[i] < 1.0))[:,None],
+                    (np.abs(priors_ar - gt_ar[i]) < 0.5)[:,None],
+                    max_idxs[:,None] == i
+                ], axis=-1) for i in range(len(gt_boxes))])
+            self.match_mask = match_mask
+            match_mask = np.array([np.all(m, axis=-1) for m in match_mask]).T
+            prior_mask = np.any(match_mask, axis=-1)
+            match_indices = np.argmax(match_mask[prior_mask,:], axis=-1)
         
         self.match_indices = dict(zip(list(np.ix_(prior_mask)[0]), list(match_indices)))
 
