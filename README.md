@@ -138,5 +138,3 @@ word recognition rate         0.858
 #### SegLink with DenseNet, Focal Loss and RCNN end-to-end real-time recogniton
 [<img src="./images/dsodslcrnn_end2end_record_preview.jpg" width="768" />](http://83.169.39.135/ssd_detectors/dsodslcrnn_end2end_record.mp4)
 
-
-
