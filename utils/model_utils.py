@@ -27,14 +27,15 @@ def load_weights(model, filepath, layer_names=None):
             name = name[0]
         else:
             layer_name = name
+        g = f[name]
+        weights = [np.array(g[wn]) for wn in g.attrs['weight_names']]
         try:
             layer = model.get_layer(layer_name)
             #assert layer is not None
         except:
             print('layer missing %s' % (layer_name))
+            print('    file  %s' % ([w.shape for w in weights]))
             continue
-        g = f[name]
-        weights = [np.array(g[wn]) for wn in g.attrs['weight_names']]
         try:
             #print('load %s' % (layer_name))
             layer.set_weights(weights)
