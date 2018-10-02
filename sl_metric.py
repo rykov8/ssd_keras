@@ -124,8 +124,9 @@ def evaluate_polygonal_results(ground_truth, detection_results, iou_thresh=0.5):
 
 
 def evaluate_results(ground_truth, detection_results, image_size=(512,512), iou_thresh=0.5):
+    h, w = image_size
     
-    ground_truth = [g[:,0:8] * np.repeat(image_size, 4) for g in ground_truth]
+    ground_truth = [g[:,0:8] * np.tile((w,h), 4) for g in ground_truth]
     detection_results = [np.array([rbox_to_polygon(dd[:5]) for dd in d]) for d in detection_results]
     
     return evaluate_polygonal_results(ground_truth, detection_results, iou_thresh)

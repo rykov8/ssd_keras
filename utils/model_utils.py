@@ -1,6 +1,5 @@
 """Some utils related to Keras models."""
 
-
 import numpy as np
 import matplotlib.pyplot as plt
 import keras.backend as K

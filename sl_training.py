@@ -14,13 +14,12 @@ class SegLinkLoss(object):
         self.lambda_offsets = lambda_offsets
         self.lambda_links = lambda_links
         self.neg_pos_ratio = neg_pos_ratio
-        self.first_map_offset = first_map_size[0] * first_map_size[1] # TODO get it from model object
+        self.first_map_offset = first_map_size[0] * first_map_size[1] # TODO get it from model or prior_util object
         self.metrics = []
     
     def compute(self, y_true, y_pred):
         # y.shape (batches, segments, 2 x segment_label + 5 x segment_offset + 16 x inter_layer_links_label + 8 x cross_layer_links_label)
         # TODO: negatives_for_hard?
-        #       mask based on y_true or y_pred?
         
         batch_size = tf.shape(y_true)[0]
         eps = K.epsilon()
@@ -132,14 +131,17 @@ class SegLinkLoss(object):
         
         def make_fcn(t):
             return lambda y_true, y_pred: t
-        for name in ['pos_seg_conf_loss', 
-                     'neg_seg_conf_loss', 
-                     'seg_loc_loss', 
-                     'pos_link_conf_loss', 
-                     'neg_link_conf_loss',
+        for name in ['seg_conf_loss',
+                     'seg_loc_loss',
+                     'link_conf_loss',
                      
                      'num_pos_seg', 
                      'num_neg_seg', 
+                     
+                     'pos_seg_conf_loss', 
+                     'neg_seg_conf_loss', 
+                     'pos_link_conf_loss', 
+                     'neg_link_conf_loss',
                      
                      'seg_precision', 
                      'seg_recall', 

@@ -9,7 +9,7 @@ from keras.layers import Input
 from keras.layers import concatenate
 from keras.layers import Reshape
 
-from ssd_model_old import ssd512_body # TODO retrain SegLink model with ssd512_body from ssd_model
+from ssd_model import ssd512_body
 from ssd_model_dense import dsod512_body, ssd384x512_dense_body
 from ssd_model_resnet import ssd512_resnet_body
 from ssd_layers import Normalize

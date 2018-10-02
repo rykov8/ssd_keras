@@ -84,8 +84,8 @@ def plot_activation(model, input_image, layer_name):
 
 
 def to_rec(box, image_size):
-    """Find minimum rectangle around some points and scale it to desired image
-    size.
+    """Finds minimum rectangle around some points and scales it to desired 
+    image size.
     
     # Arguments
         box: Box or points [x1, y1, x2, y2, ...] with values between 0 and 1.

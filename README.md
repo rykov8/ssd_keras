@@ -66,21 +66,26 @@ COCO trainval35k SSD300* from Caffe implementation
 #### [Converted SSD512 COCO](http://83.169.39.135/ssd_detectors/ssd512_coco_weights_fixed.zip)
 COCO trainval35k SSD512* from Caffe implementation
 
-#### [SegLink](http://83.169.39.135/ssd_detectors/201711071436_sl512_synthtext.zip)
+#### [SegLink](http://83.169.39.135/ssd_detectors/201809231008_sl512_synthtext.zip)
 initialized with converted SSD512 weights  
 trained and tested on subsets of SynthText  
-precision         0.846  
-recall            0.812  
-f-measure         0.828  
+segment_threshold 0.60  
+link_threshold    0.25  
+precision         0.884  
+recall            0.853  
+f-measure         0.868  
 
 #### [SegLink with DenseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201806021007_dsodsl512_synthtext.zip)
 trained and tested on subsets of SynthText  
+segment_threshold 0.55  
+link_threshold    0.45  
 precision         0.940  
 recall            0.904  
 f-measure         0.922  
 
 #### [TextBoxes++ with DennseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201807091503_dsodtbpp512fl_synthtext.zip)
 trained and tested on subsets of SynthText  
+threshold         0.35  
 precision         0.901  
 recall            0.931  
 f-measure         0.916  

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """Some utils for data augmentation."""
 
 import numpy as np
