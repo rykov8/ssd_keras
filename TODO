@@ -1,7 +1,7 @@
 
-
+train models with natural aspect ratio
 cleanup and update debugging notebooks
-virtual batch_size
+detection and recognition in one model?
 
 change naming
     true_labels, pred_labels
@@ -38,8 +38,11 @@ SSD
         custom epoch size, checkpoint callback, test, eval interval? 
         improve decoding performance, sparse, faster nms
         hard negative mining?, fix it
+        virtual batch_size
 
 SegLink
+    width of segment ground truth?
+    
     directed links to get text orientation
     training data, on icdar combined words to lines lead to better results
     
