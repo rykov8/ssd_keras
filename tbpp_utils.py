@@ -4,7 +4,7 @@ import numpy as np
 
 from ssd_utils import PriorUtil as SSDPriorUtil
 from ssd_utils import iou, non_maximum_suppression, non_maximum_suppression_slow
-from utils.bbox_utils import polygon_to_rbox3
+from utils.bboxes import polygon_to_rbox3
 
 
 class PriorUtil(SSDPriorUtil):

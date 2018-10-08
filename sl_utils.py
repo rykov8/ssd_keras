@@ -10,10 +10,10 @@ import sys
 
 from ssd_utils import PriorMap
 
-from utils.bbox_utils import rot_matrix
-from utils.bbox_utils import polygon_to_rbox, rbox_to_polygon
-from utils.bbox_utils import polygon_to_rbox2, rbox2_to_polygon
-from utils.bbox_utils import polygon_to_rbox3, rbox3_to_polygon
+from utils.bboxes import rot_matrix
+from utils.bboxes import polygon_to_rbox, rbox_to_polygon
+from utils.bboxes import polygon_to_rbox2, rbox2_to_polygon
+from utils.bboxes import polygon_to_rbox3, rbox3_to_polygon
 
 
 mean = lambda x: np.sum(x)/len(x)

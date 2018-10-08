@@ -513,7 +513,7 @@ class InputGenerator(object):
                     img = img.astype(np.float32)
                     
                     random.shuffle(self.color_jitter)
-                    for jitter in self.color_jitter:
+                    for jitter in self.color_jitter: # saturation, brightness, contrast
                         img = jitter(img)
                     if self.lighting_std:
                         img = self.lighting(img)
