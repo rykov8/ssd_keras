@@ -320,6 +320,7 @@ class InputGenerator(object):
     # padding to preserve aspect ratio? crop_area_range=[0.75, 1.25]
     
     def __init__(self, gt_util, prior_util, batch_size, input_size,
+                preserve_aspect_ratio=True,
                 augmentation=False,
                 saturation_var=0.5,
                 brightness_var=0.5,
@@ -482,6 +483,7 @@ class InputGenerator(object):
         gt_util = self.gt_util
         batch_size = self.batch_size
         num_batches = self.num_batches
+        aspect_ratio = w/h
         
         inputs, targets = [], []
         
@@ -499,6 +501,9 @@ class InputGenerator(object):
                     raw_img = img.astype(np.float32)
                     raw_y = np.copy(y)
                 
+                if self.preserve_aspect_ratio:
+                    img, y = pad_image(img, aspect_ratio, y)
+                
                 if self.augmentation:
                     if self.do_crop:
                         for _ in range(10): # tries to crop without losing ground truth
@@ -508,7 +513,7 @@ class InputGenerator(object):
                         if len(y_tmp) > 0:
                             img = img_tmp
                             y = y_tmp
-                        
+                    
                     img = cv2.resize(img, (w,h), cv2.INTER_LINEAR)
                     img = img.astype(np.float32)
                     

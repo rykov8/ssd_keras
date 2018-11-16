@@ -60,7 +60,7 @@ def evaluate_polygonal_results(ground_truth, detection_results, iou_thresh=0.5):
         TP_img = np.zeros(num_dt)
         FP_img = np.zeros(num_dt)
         
-        assignement = np.zeros(num_gt, dtype=np.bool)
+        assignment = np.zeros(num_gt, dtype=np.bool)
         
         for k in range(len(dt[i])): # dt
             poly1 = dt_polys[k]
@@ -97,13 +97,13 @@ def evaluate_polygonal_results(ground_truth, detection_results, iou_thresh=0.5):
             dt_idx = k
             
             if gt_iou[max_gt_idx] > iou_thresh:
-                if not assignement[max_gt_idx]: # todo: use highest iou, not first
+                if not assignment[max_gt_idx]: # todo: use highest iou, not first
                     TP_img[dt_idx] = 1
-                    assignement[max_gt_idx] = True
+                    assignment[max_gt_idx] = True
                     continue
             FP_img[dt_idx] = 1
         
-        FN_img_sum = np.sum(np.logical_not(assignement))
+        FN_img_sum = np.sum(np.logical_not(assignment))
             
         TP.append(TP_img)
         FP.append(FP_img)

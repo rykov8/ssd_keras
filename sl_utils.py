@@ -27,14 +27,13 @@ def plot_rbox(box, color='r', linewidth=1):
 class PriorUtil(object):
     """Utility for LinkSeg prior boxes.
     """
-    def __init__(self, model):
+    def __init__(self, model, gamma=1.5):
         
         source_layers_names = [l.name.split('/')[0] for l in model.source_layers]
         self.source_layers_names = source_layers_names
         
         self.model = model
         self.image_size = model.input_shape[1:3]
-        gamma = 1.5
         self.image_h, self.image_w = self.image_size
         self.prior_maps = []
         previous_map_size = None
@@ -536,7 +535,7 @@ class PriorUtil(object):
             ax.add_patch(plt.Polygon(box, fill=False, edgecolor='b', linewidth=2))
         plt.plot(rboxes[:,0], rboxes[:,1], 'go',  markersize=4)
     
-    def plot_assignement(self, map_idx):
+    def plot_assignment(self, map_idx):
         """Draw information about the encoded ground truth. 
         
         # Arguments
@@ -544,7 +543,7 @@ class PriorUtil(object):
         
         # Coloring    
             yellow/blue  Rotated ground truth boxes.
-            magenta      Assignement of prior locations to rotatet ground truth boxes.
+            magenta      Assignment of prior locations to rotatet ground truth boxes.
             cyan         Links between prior locations.
         """
         self.plot_gt()

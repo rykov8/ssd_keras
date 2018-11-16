@@ -12,9 +12,9 @@ from keras.layers import Reshape
 from keras.layers import ZeroPadding2D
 from keras.models import Model
 
+from utils.layers import Normalize
 from ssd_model import ssd512_body
 from ssd_model_dense import dsod512_body
-from ssd_layers import Normalize
 
 
 def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):

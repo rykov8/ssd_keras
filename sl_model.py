@@ -9,10 +9,10 @@ from keras.layers import Input
 from keras.layers import concatenate
 from keras.layers import Reshape
 
+from utils.layers import Normalize
 from ssd_model import ssd512_body
 from ssd_model_dense import dsod512_body, ssd384x512_dense_body
 from ssd_model_resnet import ssd512_resnet_body
-from ssd_layers import Normalize
 
 
 def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
@@ -33,7 +33,7 @@ def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
             name = name + '_norm'
             x = Normalize(normalizations[i], name=name)(x)
             
-        # confidenc
+        # confidence
         name1 = name + '_mbox_conf'
         x1 = Conv2D(num_priors[i] * num_classes, 3, padding='same', name=name1)(x)
         x1 = Flatten(name=name1+'_flat')(x1)

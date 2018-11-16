@@ -14,8 +14,9 @@ def load_weights(model, filepath, layer_names=None):
         model: Keras model
         filepath: Path to HDF5 file
         layer_names: List of strings, names of the layers for which the 
-            weights should be loaded. List of tuples, if the names in 
-            the file differ from those in model.
+            weights should be loaded. List of tuples 
+            (name_in_file, name_in_model), if the names in the file differ 
+            from those in model.
     """
     filepath = os.path.expanduser(filepath)
     f = h5py.File(filepath, 'r')

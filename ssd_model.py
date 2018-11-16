@@ -11,9 +11,10 @@ from keras.layers import Reshape
 from keras.layers import ZeroPadding2D
 from keras.models import Model
 
-from ssd_layers import Normalize
+from utils.layers import Normalize
 from ssd_model_dense import dsod300_body, dsod512_body
 from ssd_model_resnet import ssd512_resnet_body
+
 
 def ssd300_body(x):
     

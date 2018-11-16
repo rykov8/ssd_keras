@@ -577,7 +577,7 @@ class PriorUtil(object):
         img = img / 256.
         plt.imshow(img)
     
-    def plot_assignement(self, map_idx):
+    def plot_assignment(self, map_idx):
         ax = plt.gca()
         im = plt.gci()
         img_h, img_w = image_size = im.get_size()

@@ -76,7 +76,7 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
             num_groundtruth_boxes[c] += num_gt
             num_detections[c] += num_dt
             
-            assignement = np.zeros(num_gt, dtype=np.bool)
+            assignment = np.zeros(num_gt, dtype=np.bool)
             
             if num_dt > 0:
                 for dt_idx in dt_idxs:
@@ -84,17 +84,17 @@ def evaluate_results(ground_truth, detection_results, gt_util, iou_thresh=0.5, m
                         gt_iou = iou(dt_boxes[dt_idx], gt_boxes[gt_idxs])
                         max_gt_idx = np.argmax(gt_iou)
                         if gt_iou[max_gt_idx] > iou_thresh:
-                            if not assignement[max_gt_idx]:
+                            if not assignment[max_gt_idx]:
                                 # true positive
                                 TP_img[dt_idx, c] = 1
-                                assignement[max_gt_idx] = True
+                                assignment[max_gt_idx] = True
                                 continue
                             # false positive (multiple detections)
                         # false positive (intersection to low)
                     # false positive (no ground truth of this class)
                     FP_img[dt_idx, c] = 1
         
-            FN_img_sum[c] = np.sum(np.logical_not(assignement))
+            FN_img_sum[c] = np.sum(np.logical_not(assignment))
         
         if False: # debug
             plt.figure(figsize=[10]*2)
