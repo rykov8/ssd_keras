@@ -183,25 +183,20 @@ class PriorMap(object):
         return len(self.box_xy) * len(self.box_wh) # len(self.priors)
     
     def compute_priors(self):
-        image_h, image_w = self.image_size
-        map_h, map_w = self.map_size
+        image_h, image_w = image_size = self.image_size
+        map_h, map_w = map_size = self.map_size
         min_size, max_size = self.minmax_size
         
         # define centers of prior boxes
-        if self.step == None:
-            # TODO: this is a bad idea since we are not always at the same 
-            # loction in the receptive fields, step results form up/downsampling
-            # round to next power of two? base ** round(math.log(num, base))
-            # problem: SL and TB++ models are trained with it
+        if self.step is None:
             step_x = image_w / map_w
             step_y = image_h / map_h
-            linx = np.linspace(step_x / 2., image_w - step_x / 2., map_w)
-            liny = np.linspace(step_y / 2., image_h - step_y / 2., map_h)
+            assert step_x % 1 == 0 and step_y % 1 == 0, 'map size %s not constiten with input height %s' % (map_size, image_size)
         else:
-            # for compatibility with caffe models
             step_x = step_y = self.step
-            linx = np.array([(0.5 + i) for i in range(map_w)]) * step_x
-            liny = np.array([(0.5 + i) for i in range(map_h)]) * step_y
+            
+        linx = np.array([(0.5 + i) for i in range(map_w)]) * step_x
+        liny = np.array([(0.5 + i) for i in range(map_h)]) * step_y
         box_xy = np.array(np.meshgrid(linx, liny)).reshape(2,-1).T
         
         if self.shift is None:
