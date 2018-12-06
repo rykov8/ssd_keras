@@ -59,8 +59,8 @@ class PriorUtil(SSDPriorUtil):
         
         priors_xy = self.priors_xy[prior_mask] / self.image_size
         priors_wh = self.priors_wh[prior_mask] / self.image_size
-        variances_xy = self.priors[prior_mask,-4:-2]
-        variances_wh = self.priors[prior_mask,-2:]
+        variances_xy = self.priors_variances[prior_mask,0:2]
+        variances_wh = self.priors_variances[prior_mask,2:4]
         
         # compute local offsets for 
         offsets = np.zeros((num_priors, 4))
@@ -102,11 +102,11 @@ class PriorUtil(SSDPriorUtil):
             model_output = model_output[mask]
             priors_xy = self.priors_xy[mask] / self.image_size
             priors_wh = self.priors_wh[mask] / self.image_size
-            priors_variances = self.priors[mask,-4:]
+            priors_variances = self.priors_variances[mask,:]
         else:
             priors_xy = self.priors_xy / self.image_size
             priors_wh = self.priors_wh / self.image_size
-            priors_variances = self.priors[:,-4:]
+            priors_variances = self.priors_variances
             
         #print('offsets', len(confidence), len(prior_mask))
         
