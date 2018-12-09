@@ -461,18 +461,20 @@ class PriorUtil(object):
         if debug:
             ax = plt.gca()
             
-            # plot positive links
+            # plot positive links between priors
             inter_layer_link_mask = inter_layer_links_labels[:,1::2] > link_threshold
             for idx in range(len(inter_layer_link_mask)):
                 p1 = priors_xy[idx]
-                for n_idx in inter_layer_neighbors_idxs[idx][inter_layer_link_mask[idx]]:
+                n_mask = np.logical_and(inter_layer_link_mask[idx], self.inter_layer_neighbors_valid[idx])
+                for n_idx in inter_layer_neighbors_idxs[idx][n_mask]:
                     p2 = priors_xy[n_idx]
                     plt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'y-', linewidth=2)
                 
             cross_layer_link_mask = cross_layer_links_labels[:,1::2] > link_threshold
             for idx in range(len(cross_layer_neighbors_idxs)):
                 p1 = priors_xy[idx+first_map_offset]
-                for n_idx in cross_layer_neighbors_idxs[idx][cross_layer_link_mask[idx+first_map_offset]]:
+                n_mask = cross_layer_link_mask[idx+first_map_offset]
+                for n_idx in cross_layer_neighbors_idxs[idx][n_mask]:
                     p2 = priors_xy[n_idx]
                     plt.plot([p1[0], p2[0]], [p1[1], p2[1]], '-', color='orange', linewidth=2)
                     
@@ -481,7 +483,7 @@ class PriorUtil(object):
             for k in keys:
                 plot_rbox(rboxes_s_dict[k], color='k', linewidth=2)
 
-            # plot links
+            # plot links between segments
             for k in keys:
                 p1 = rboxes_s_dict[k][:2]
                 for m in adjacency[k]:
