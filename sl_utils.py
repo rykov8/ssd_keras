@@ -211,9 +211,6 @@ class PriorUtil(object):
                 rbox_loc_rot_back = polygon_to_rbox(poly_loc_rot_back)
 
                 # encode, solve (3) to (7) to get local offsets
-                #offset = np.array([*(rbox_loc_rot_back[:2]/a_l), 
-                #                   *(np.log(rbox_loc_rot_back[2:4]/a_l)), 
-                #                   rbox_loc_rot_back[4]])
                 offset = np.array(list(rbox_loc_rot_back[:2]/a_l) + 
                                   list(np.log(rbox_loc_rot_back[2:4]/a_l)) +
                                   [rbox_loc_rot_back[4]])

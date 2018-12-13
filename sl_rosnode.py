@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     from sl_model import SL512 as Model
     from sl_utils import PriorUtil
-    from ssd_utils import load_weights
+    from utils.model import load_weights
 
     class_names = ['Background', 'Text'];
     input_shape = (512,512,3)

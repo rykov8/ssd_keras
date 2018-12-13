@@ -10,9 +10,8 @@ import os
 
 from tqdm import tqdm
 
-from utils.model_utils import load_weights, calc_memory_usage, count_parameters, plot_parameter_statistic, calc_receptive_field
-
-from ssd_viz import to_rec
+from utils.model import load_weights, calc_memory_usage, count_parameters, plot_parameter_statistic, calc_receptive_field
+from utils.vis import to_rec
 
 
 def iou(box, priors):

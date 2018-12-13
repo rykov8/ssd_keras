@@ -21,7 +21,7 @@ def leaky_relu(x):
     """
     #return K.relu(x, alpha=0.1, max_value=None)
     
-    # requires less memory then keras implementation
+    # requires less memory than keras implementation
     alpha = 0.1
     zero = _to_tensor(0., x.dtype.base_dtype)
     alpha = _to_tensor(alpha, x.dtype.base_dtype)
@@ -44,7 +44,7 @@ class Normalize(Layer):
     # References
         http://cs.unc.edu/~wliu/papers/parsenet.pdf
 
-    #TODO
+    # TODO
         Add possibility to have one scale for all features.
     """
     def __init__(self, scale, **kwargs):

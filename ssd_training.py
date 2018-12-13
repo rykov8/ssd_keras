@@ -6,8 +6,6 @@ import keras.backend as K
 import tensorflow as tf
 
 from utils.training import smooth_l1_loss, softmax_loss, focal_loss
-from utils.training import LearningRateDecay, ModelSnapshot, Logger
-from utils.training import AdamAccumulate
 from utils.training import plot_log
 
 
