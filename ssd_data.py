@@ -128,7 +128,7 @@ class BaseGTUtility(object):
         # Return
             idxs: List of the sample idices in the dataset.
             inputs: List of preprocessed input images (BGR).
-            images: List of normalized images for vizualization (RGB).
+            images: List of normalized images for visualization (RGB).
             data: List of Ground Truth data, arrays with bounding boxes and class label.
         '''
         h, w = input_size
@@ -316,7 +316,6 @@ class InputGenerator(object):
     """Model input generator for data augmentation."""
     # TODO
     # flag to protect bounding boxes from cropping?
-    # flag for preserving aspect ratio or not
     # padding to preserve aspect ratio? crop_area_range=[0.75, 1.25]
     
     def __init__(self, gt_util, prior_util, batch_size, input_size,
@@ -454,6 +453,9 @@ class InputGenerator(object):
                 new_box[1:8:2] -= y_rel
                 new_box[1:8:2] /= h_rel
                 
+                #new_box[0:8:2] = np.clip(new_box[0:8:2], 0, 1) # horizontal clip
+                #new_box[1:8:2] = np.clip(new_box[1:8:2], 0, 1) # vertical clip
+                
                 if (new_box[0] < 1 and new_box[6] < 1 and new_box[2] > 0 and new_box[4] > 0 and 
                     new_box[1] < 1 and new_box[3] < 1 and new_box[5] > 0 and new_box[7] > 0):
                     new_target.append(new_box)
@@ -477,13 +479,16 @@ class InputGenerator(object):
             new_target = np.asarray(new_target).reshape(-1, target.shape[1])
         return new_img, new_target
     
-    def generate(self, debug=False, encode=True):
+    def generate(self, debug=False, encode=True, seed=1337):
         h, w = self.input_size
         mean = np.array([104,117,123])
         gt_util = self.gt_util
         batch_size = self.batch_size
         num_batches = self.num_batches
         aspect_ratio = w/h
+        
+        if seed is not None:
+            np.random.seed(seed)
         
         inputs, targets = [], []
         
@@ -500,9 +505,6 @@ class InputGenerator(object):
                 if debug:
                     raw_img = img.astype(np.float32)
                     raw_y = np.copy(y)
-                
-                if self.preserve_aspect_ratio:
-                    img, y = pad_image(img, aspect_ratio, y)
                 
                 if self.augmentation:
                     if self.do_crop:
@@ -532,6 +534,9 @@ class InputGenerator(object):
                     img = cv2.resize(img, (w,h), cv2.INTER_LINEAR)
                     img = img.astype(np.float32)
                 
+                if self.preserve_aspect_ratio:
+                    img, y = pad_image(img, aspect_ratio, y)
+                
                 if debug:
                     plt.figure(figsize=(12,6))
                     # origal gt image
@@ -549,7 +554,7 @@ class InputGenerator(object):
                     plt.imshow(dbg_img)
                     gt_util.plot_gt(y)
                     plt.show()
-                    
+                
                 img -= mean[np.newaxis, np.newaxis, :]
                 #img = img / 25.6
                 
