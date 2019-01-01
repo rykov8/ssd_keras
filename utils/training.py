@@ -1,10 +1,11 @@
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import keras.backend as K
 import tensorflow as tf
-import json
 import time
+import os
 
 from keras.callbacks import Callback
 from keras.optimizers import Optimizer
@@ -156,7 +157,7 @@ class ModelSnapshot(Callback):
         
     def on_batch_end(self, batch, logs=None):
         if self.iteration % self.interval == 0:
-            filepath = self.logdir + '/weights.%06i.h5' % (self.iteration)
+            filepath = os.path.join(self.logdir, 'weights.%06i.h5' % (self.iteration))
             if self.verbose > 0:
                 print('\nSaving model %s' % (filepath))
             self.model.save_weights(filepath, overwrite=True)
@@ -169,12 +170,21 @@ class Logger(Callback):
         self.logdir = logdir
     
     def save_history(self):
-        with open(self.logdir+'/history.json','w') as f:
-            json.dump(self.model.history.history, f)
-        f.close()
+        df = pd.DataFrame.from_dict(self.model.history.history)
+        df.to_csv(os.path.join(self.logdir, 'history.csv'), index=False)
+    
+    def append_log(self, logs):
+        data = {k:[float(logs[k])] for k in self.model.metrics_names}
+        data['iteration'] = [self.iteration]
+        data['epoch'] = [self.epoch]
+        data['batch'] = [self.batch]
+        data['time'] = [time.time() - self.start_time]
+        #data['lr'] = [float(K.get_value(self.model.optimizer.lr))]
+        df = pd.DataFrame.from_dict(data)
+        with open(os.path.join(self.logdir, 'log.csv'), 'a') as f:
+            df.to_csv(f, header=f.tell()==0, index=False)
     
     def on_train_begin(self, logs=None):
-        self.json_log = open(self.logdir+'/log.json', mode='wt', buffering=1)
         self.start_time = time.time()
         
     def on_epoch_begin(self, epoch, logs=None):
@@ -188,62 +198,50 @@ class Logger(Callback):
         self.iteration = self.epoch * steps_per_epoch + batch
         
     def on_batch_end(self, batch, logs=None):
-        data = {k:float(logs[k]) for k in self.model.metrics_names}
-        data['iteration'] = self.iteration
-        data['epoch'] = self.epoch
-        data['batch'] = self.batch
-        data['time'] = time.time() - self.start_time
-        data['lr'] = float(K.get_value(self.model.optimizer.lr))
-        self.json_log.write(json.dumps(data) + '\n')
+        self.append_log(logs)
     
     def on_epoch_end(self, epoch, logs=None):
         pass
 
     def on_train_end(self, logs=None):
-        self.json_log.close()
         self.save_history()
 
 
-def plot_log(log_file, names=None, limits=None, window_length=250, log_file_compare=None):
+def plot_log(log_dir, names=None, limits=None, window_length=250, log_dir_compare=None):
     
-    # TODO: print name of both files, length, compare history
+    # TODO: differnet batch sizes lead to different epoch length
     
-    def load_log(log_file):
-        with open(log_file,'r') as f:
-            data = f.readlines()
-        keys = json.loads(data[0]).keys()
-        d = {k:[] for k in keys}
-        for i, line in enumerate(data):
-            if not limits == None and (i < limits[0] or i > limits[1]):
-                continue
-            dat = json.loads(line)
-            for k in keys:
-                d[k].append(dat[k])
-        d = {k:np.array(d[k]) for k in keys}
-        return d
+    if limits is None:
+        limits = slice(None)
+    elif type(limits) in [list, tuple]:
+        limits = slice(*limits)
     
-    d = load_log(log_file)
-    print(log_file)
+    print(log_dir)
+    d = pd.read_csv(os.path.join('.', 'checkpoints', log_dir, 'log.csv'))
+    d = d[limits]
+    iteration = np.array(d['iteration'])
+    epoch = np.array(d['epoch'])
+    idx = np.argwhere(np.diff(epoch))[:,0] + 1
     
-    if log_file_compare is not None:
-        d2 = load_log(log_file_compare)
-        print(log_file_compare)
-    
+    if log_dir_compare is not None:
+        print(log_dir_compare)
+        d2 = pd.read_csv(os.path.join('.', 'checkpoints', log_dir_compare, 'log.csv'))
+        d2 = d2[limits]
+        iteration2 = np.array(d2['iteration'])
+        
     if names is None:
-        names = [k for k in d.keys() if k not in ['epoch', 'batch', 'iteration']]
+        names = set(d.keys())
     else:
-        names = [k for k in names if k in d.keys()]
+        names = set(names)
+        names.intersection_update(set(d.keys()))
+    if log_dir_compare is not None:
+        names.intersection_update(set(d2.keys()))
+    names.difference_update({'epoch', 'batch', 'iteration', 'time'})
     print(names)
-
-    iteration = d['iteration']
-    epoch = d['epoch']
-    idx = []
-    for i in range(1,len(epoch)):
-        if epoch[i] != epoch[i-1]:
-            idx.append(i)
     
     if 'time' in d.keys() and len(idx) > 1:
-        print('time per epoch %3.1f h' % ((d['time'][idx[1]]-d['time'][idx[0]])/3600))
+        t = np.array(d['time'])
+        print('time per epoch %3.1f h' % ((t[idx[1]]-t[idx[0]])/3600))
     
     # reduce epoch ticks
     max_ticks = 20
@@ -273,8 +271,6 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
         wh = int(window_length/2)
     
     for k in names:
-        if k in ['epoch', 'batch', 'iteration', 'time']:
-            continue
         plt.figure(figsize=(16, 8))
         plt.plot(iteration, d[k], zorder=0)
         plt.title(k, y=1.05)
@@ -286,15 +282,15 @@ def plot_log(log_file, names=None, limits=None, window_length=250, log_file_comp
             plt.plot(x, y)
         
         # second log
-        if log_file_compare is not None and k in d2.keys():
-            plt.plot(d2['iteration'], d2[k], zorder=0)
+        if log_dir_compare is not None:
+            plt.plot(iteration2, d2[k], zorder=0)
             
-            if window_length and len(d2['iteration']) > window_length:
-                x = d2['iteration'][wh-1:-wh]
+            if window_length and len(iteration2) > window_length:
+                x = iteration2[wh-1:-wh]
                 y = np.convolve(w/w.sum(), d2[k], mode='valid')
                 plt.plot(x, y)
-            xmin = min(d['iteration'][0], d2['iteration'][0])
-            xmax = max(d['iteration'][-1], d2['iteration'][-1])
+            xmin = min(iteration[0], iteration2[0])
+            xmax = max(iteration[-1], iteration2[-1])
         else:
             xmin = iteration[0]
             xmax = iteration[-1]
