@@ -29,8 +29,8 @@ def smooth_l1_loss(y_true, y_pred):
     """
     abs_loss = tf.abs(y_true - y_pred)
     sq_loss = 0.5 * (y_true - y_pred)**2
-    l1_loss = tf.where(tf.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
-    return tf.reduce_sum(l1_loss, -1)
+    loss = tf.where(tf.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
+    return tf.reduce_sum(loss, axis=-1)
 
 def softmax_loss(y_true, y_pred):
     """Compute cross entropy loss aka softmax loss.
@@ -45,12 +45,20 @@ def softmax_loss(y_true, y_pred):
         softmax_loss: Softmax loss, tensor of shape (?, num_boxes).
     """
     eps = K.epsilon()
-    y_pred = K.clip(y_pred, eps, 1. - eps)
-    softmax_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
-    return softmax_loss
+    y_pred = K.clip(y_pred, eps, 1.-eps)
+    loss = - y_true * tf.log(y_pred)
+    return tf.reduce_sum(loss, axis=-1)
 
-def focal_loss(y_true, y_pred, gamma=2, alpha=0.25):
-    """Compute focal loss.
+def cross_entropy_loss(y_true, y_pred):
+    """Compute binary cross entropy loss.
+    """
+    eps = K.epsilon()
+    y_pred = K.clip(y_pred, eps, 1.-eps)
+    loss = - y_true*tf.log(y_pred) - (1-y_true)*tf.log(1-y_pred)
+    return tf.reduce_sum(loss, axis=-1)
+
+def focal_loss(y_true, y_pred, gamma=2., alpha=1.):
+    """Compute binary focal loss.
     
     # Arguments
         y_true: Ground truth targets,
@@ -66,11 +74,12 @@ def focal_loss(y_true, y_pred, gamma=2, alpha=0.25):
     """
     #y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
     eps = K.epsilon()
-    y_pred = K.clip(y_pred, eps, 1. - eps)
-    
+    y_pred = K.clip(y_pred, eps, 1.-eps)
+    #loss = - K.pow(1-y_pred, gamma) * y_true*tf.log(y_pred) - K.pow(y_pred, gamma) * (1-y_true)*tf.log(1-y_pred)
     pt = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
-    focal_loss = -tf.reduce_sum(alpha * K.pow(1. - pt, gamma) * K.log(pt), axis=-1)
-    return focal_loss
+    loss = - K.pow(1.-pt, gamma) * K.log(pt)
+    loss = alpha * loss
+    return tf.reduce_sum(loss, axis=-1)
 
 
 class LearningRateDecay(Callback):

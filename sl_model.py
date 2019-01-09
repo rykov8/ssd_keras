@@ -17,7 +17,6 @@ from ssd_model_resnet import ssd512_resnet_body
 
 def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
     
-    num_classes = 2
     class_activation = 'softmax' if softmax else 'sigmoid'
     
     mbox_conf = []
@@ -35,7 +34,7 @@ def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
             
         # confidence
         name1 = name + '_mbox_conf'
-        x1 = Conv2D(num_priors[i] * num_classes, 3, padding='same', name=name1)(x)
+        x1 = Conv2D(num_priors[i] * 2, 3, padding='same', name=name1)(x)
         x1 = Flatten(name=name1+'_flat')(x1)
         mbox_conf.append(x1)
 
@@ -47,40 +46,40 @@ def multibox_head(source_layers, num_priors, normalizations=None, softmax=True):
         
         # link interlayer confidenc
         name3 = name + '_link_interlayer_conf'
-        x3 = Conv2D(num_priors[i] * num_classes * 8, 3, padding='same', name=name3)(x)
+        x3 = Conv2D(num_priors[i] * 2 * 8, 3, padding='same', name=name3)(x)
         x3 = Flatten(name=name3+'_flat')(x3)
         link_interlayer_conf.append(x3)
         
         # link crosslayer confidenc
         name4 = name + '_link_crosslayer_conf'
-        x4 = Conv2D(num_priors[i] * num_classes * 4, 3, padding='same', name=name4)(x)
+        x4 = Conv2D(num_priors[i] * 2 * 4, 3, padding='same', name=name4)(x)
         x4 = Flatten(name=name4+'_flat')(x4)
         link_crosslayer_conf.append(x4)
 
     mbox_conf = concatenate(mbox_conf, axis=1, name='mbox_conf')
-    mbox_conf = Reshape((-1, num_classes), name='mbox_conf_logits')(mbox_conf)
+    mbox_conf = Reshape((-1, 2), name='mbox_conf_logits')(mbox_conf)
     mbox_conf = Activation(class_activation, name='mbox_conf_final')(mbox_conf)
     
     mbox_loc = concatenate(mbox_loc, axis=1, name='mbox_loc')
     mbox_loc = Reshape((-1, 5), name='mbox_loc_final')(mbox_loc)
 
     #link_interlayer_conf = concatenate(link_interlayer_conf, axis=1, name='link_interlayer_conf')
-    #link_interlayer_conf = Reshape((-1, num_classes * 8), name='link_interlayer_conf_logits')(link_interlayer_conf)
+    #link_interlayer_conf = Reshape((-1, 2 * 8), name='link_interlayer_conf_logits')(link_interlayer_conf)
     #link_interlayer_conf = Activation(class_activation, name='link_interlayer_conf_final')(link_interlayer_conf)
     
     #link_crosslayer_conf = concatenate(link_crosslayer_conf, axis=1, name='link_crosslayer_conf')
-    #link_crosslayer_conf = Reshape((-1, num_classes * 4), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
+    #link_crosslayer_conf = Reshape((-1, 2 * 4), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
     #link_crosslayer_conf = Activation(class_activation, name='link_crosslayer_conf_final')(link_crosslayer_conf)
     
     link_interlayer_conf = concatenate(link_interlayer_conf, axis=1, name='link_interlayer_conf')
-    link_interlayer_conf = Reshape((-1, num_classes), name='link_interlayer_conf_logits')(link_interlayer_conf)
+    link_interlayer_conf = Reshape((-1, 2), name='link_interlayer_conf_logits')(link_interlayer_conf)
     link_interlayer_conf = Activation(class_activation, name='link_interlayer_conf_softmax')(link_interlayer_conf)
-    link_interlayer_conf = Reshape((-1, num_classes * 8), name='link_interlayer_conf_final')(link_interlayer_conf)
+    link_interlayer_conf = Reshape((-1, 2 * 8), name='link_interlayer_conf_final')(link_interlayer_conf)
     
     link_crosslayer_conf = concatenate(link_crosslayer_conf, axis=1, name='link_crosslayer_conf')
-    link_crosslayer_conf = Reshape((-1, num_classes), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
+    link_crosslayer_conf = Reshape((-1, 2), name='link_crosslayer_conf_logits')(link_crosslayer_conf)
     link_crosslayer_conf = Activation(class_activation, name='link_crosslayer_conf_softmax')(link_crosslayer_conf)
-    link_crosslayer_conf = Reshape((-1, num_classes * 4), name='link_crosslayer_conf_final')(link_crosslayer_conf)
+    link_crosslayer_conf = Reshape((-1, 2 * 4), name='link_crosslayer_conf_final')(link_crosslayer_conf)
     
     predictions = concatenate([
             mbox_conf, 
