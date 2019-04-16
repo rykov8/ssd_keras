@@ -11,9 +11,11 @@ class GTUtility(BaseGTUtility):
     # Arguments
         data_path: Path to ground truth and image data.
         test: Boolean for using training or test set.
+        polygon: Return oriented boxes defined by their four corner points.
+            Required by SegLink...
     """
     
-    def __init__(self, data_path, test=False):
+    def __init__(self, data_path, test=False, polygon=False):
         self.data_path = data_path
         if test:
             gt_path = os.path.join(data_path, 'test.xml')
@@ -41,14 +43,15 @@ class GTUtility(BaseGTUtility):
                 y1 = float(box_tree.attrib['y'])
                 x2 = x1 + float(box_tree.attrib['width'])
                 y2 = y1 + float(box_tree.attrib['height'])
-                box = [x1, y1, x2, y2, 1]
-                box[0] /= img_width
-                box[1] /= img_height
-                box[2] /= img_width
-                box[3] /= img_height
+                if polygon:
+                    box = [x1, y1, x1, y2, x2, y2, x2, y1, 1]
+                else:
+                    box = [x1, y1, x2, y2, 1]
                 boxes.append(box)
                 text.append(box_tree.find('tag').text)
             boxes = np.asarray(boxes)
+            boxes[:,0:-1:2] /= img_width
+            boxes[:,1:-1:2] /= img_height
             self.image_names.append(image_name)
             self.data.append(boxes)
             self.text.append(text)
