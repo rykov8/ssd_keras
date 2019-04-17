@@ -15,6 +15,7 @@ from utils.bboxes import polygon_to_rbox, rbox_to_polygon
 from utils.bboxes import polygon_to_rbox2, rbox2_to_polygon
 from utils.bboxes import polygon_to_rbox3, rbox3_to_polygon
 
+eps = 1e-10
 
 mean = lambda x: np.sum(x)/len(x)
 
@@ -287,8 +288,6 @@ class PriorUtil(object):
         # Return
             Array with rboxes of shape (results, x + y + w + h + theta + confidence).
         """
-        # TODO: handle the case when the line is vertical, tan(theta) == inf and x_proj[max_idx] == x_proj[max_idx]
-        
         segment_labels = model_output[:,0:2]
         segment_offsets = model_output[:,2:7]
         inter_layer_links_labels = model_output[:,7:23]
@@ -391,6 +390,7 @@ class PriorUtil(object):
             # step 3, algorithm 1, find minimizing b in y = a*x + b
             # minimize sum (a*x_i + b - y_i)^2 leads to b = mean(y_i - a*x_i)
             a = np.tan(-theta_b)
+            a = np.sign(a) * np.max([np.abs(a), eps]) # avoid division by zero
             b = mean(rboxes_s[:,1] - a * rboxes_s[:,0])
 
             # step 4, algorithm 1, project centers on the line
@@ -642,7 +642,7 @@ class PriorUtil(object):
                     elif not g and p: # FP
                         plt.plot([p1[0], p2[0]], [p1[1], p2[1]], '-b', linewidth=2)
     
-    def plot_results(self, results=None, show_labels=False):
+    def plot_results(self, results=None, show_labels=False, color='r'):
         """Draw the combined bounding boxes."""
         if results is None:
             results = self.results
@@ -651,10 +651,10 @@ class PriorUtil(object):
             rbox = r[:5]
             xy_rec = rbox_to_polygon(rbox)
             xy_rec = np.flip(xy_rec, axis=0) # TODO: fix this
-            ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor='r', linewidth=2))
+            ax.add_patch(plt.Polygon(xy_rec, fill=False, edgecolor=color, linewidth=2))
             if show_labels:
                 label_name = '%.2f' % (r[5],)
                 plt.text(xy_rec[0,0], xy_rec[0,1], 
                          label_name, rotation=rbox[4]/np.pi*180, 
-                         bbox={'facecolor':'r', 'alpha':0.5})
+                         bbox={'facecolor':color, 'alpha':0.5})
     
