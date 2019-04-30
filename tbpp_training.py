@@ -8,7 +8,7 @@ from ssd_training import smooth_l1_loss, focal_loss, compute_metrics
 
 class TBPPFocalLoss(object):
 
-    def __init__(self, lambda_conf=1000.0, lambda_offsets=1.0):
+    def __init__(self, lambda_conf=100.0, lambda_offsets=1.0):
         self.lambda_conf = lambda_conf
         self.lambda_offsets = lambda_offsets
         self.metrics = []

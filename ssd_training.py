@@ -14,6 +14,8 @@ def compute_metrics(class_true, class_pred, conf, top_k=100):
     
     from top_k predictions that are TP FN or FP (TN kept out)
     """
+    
+    # TODO: does this only work for one class?
 
     top_k = tf.cast(top_k, tf.int32)
     eps = K.epsilon()
@@ -147,7 +149,7 @@ class SSDLoss(object):
 
 class SSDFocalLoss(object):
 
-    def __init__(self, lambda_conf=10000.0, lambda_offsets=1.0, class_weights=1.0):
+    def __init__(self, lambda_conf=100.0, lambda_offsets=1.0, class_weights=1.0):
         self.lambda_conf = lambda_conf
         self.lambda_offsets = lambda_offsets
         self.class_weights = class_weights
