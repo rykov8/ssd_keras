@@ -72,8 +72,8 @@ trained and tested on subsets of SynthText
 segment_threshold 0.60  
 link_threshold    0.25  
 precision         0.884  
-recall            0.853  
-f-measure         0.868  
+recall            0.854  
+f-measure         0.869  
 
 #### [SegLink with DenseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201806021007_dsodsl512_synthtext.zip)
 trained and tested on subsets of SynthText  

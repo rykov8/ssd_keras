@@ -7,7 +7,8 @@ change naming
     true_labels, pred_labels
     input/image size?
     'plot' in 'draw'
-    'inter layer segments'
+    'inter layer segments', inter vs within
+    gt_util_... vs gtu_...
 
 data augmentation
     augmentation and batch size in validation?
@@ -22,10 +23,9 @@ SSD
     ResNet https://github.com/hzm8341/SSD_keras_restnet/blob/master/SSD_ResNet/SSD_resnet.py
     MobileNet https://github.com/tanakataiki/ssd_keras/blob/master/ssd300MobileNet.py
     do not crop boxes outside image
-    remove flip option for aspect ratios
     try input normalisation
-    unfreeze layers gradually?
     DONE
+        remove flip option for aspect ratios
         use softmax for each class, not categorical cross entropy
         DSOD
         precision, recall, f-mean / f-measure
@@ -41,7 +41,7 @@ SSD
         virtual batch_size
 
 SegLink
-    width of segment ground truth?
+    width of segment ground truth at the left and right edge?
     
     directed links to get text orientation
     training data, on icdar combined words to lines lead to better results
@@ -54,7 +54,6 @@ SegLink
         parameters for sl loss and focal loss
     
     debug
-        segment ground truth at the left and right side
         check if parameters get properly loaded
         why some boxes are wrong
     
@@ -74,6 +73,7 @@ CRNN
     RGB input?
     check synthtext? 'small caps' etc
     normalize input, subtract mean
+    
     DONE
         larger alphabet
         GRU

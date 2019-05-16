@@ -197,7 +197,6 @@ class PriorUtil(object):
 
                 # step 2 figuer 5, rotate word anticlockwise around the center of prior
                 d = rbox[:2] - m.priors_xy[j]
-                #poly_loc = rbox_to_polygon([*d, w, h, theta])
                 poly_loc = rbox_to_polygon(list(d) + [w, h, theta])
                 poly_loc_easy = polygon - m.priors_xy[j]
 
@@ -235,7 +234,7 @@ class PriorUtil(object):
                     ax.add_patch(plt.Polygon(poly_loc_rot_back, fill=False, edgecolor='y', linewidth=1))
                     lim = 50; plt.xlim(-lim,lim); plt.ylim(-lim,lim); plt.grid()
                     plt.show()
-                    break
+                    debug = False
 
             # compute link labels
             m.inter_layer_links_labels = np.zeros((num_priors,16), dtype=np.int8)
@@ -386,35 +385,56 @@ class PriorUtil(object):
             # step 2, algorithm 1
             #print('rboxes_s[:,4]', rboxes_s[:,4].shape)
             theta_b = mean(rboxes_s[:,4])
-
+            
             # step 3, algorithm 1, find minimizing b in y = a*x + b
             # minimize sum (a*x_i + b - y_i)^2 leads to b = mean(y_i - a*x_i)
             a = np.tan(-theta_b)
-            a = np.sign(a) * np.max([np.abs(a), eps]) # avoid division by zero
+            a = np.copysign(np.max([np.abs(a), eps]), a) # avoid division by zero
             b = mean(rboxes_s[:,1] - a * rboxes_s[:,0])
+            
+            # REMARK
+            # set True, if you want the original SegLink decoding as described in the paper
+            # the issue with the original decoding is, that step 6 makes only sense if x_p 
+            # and x_q are on the left and right edge and step 8 makes only sense if x_p and
+            # x_q are on the centers of the rightmost and leftmost segment
+            if False:
+                # step 4, algorithm 1, project centers on the line
+                # construct line y_p = a_p*x_p + b_p that contains the point and is orthognonal to y = a*x + b
+                # with a_p = -1/a and b_p = y_p - a_p * x_p we get th point of intersection
+                # x_s = (b_p - b) / (a - a_p) 
+                # y_s = a * x_s + b
+                x_proj = (rboxes_s[:,1] + 1/a * rboxes_s[:,0] - b) / (a + 1/a)
+                y_proj = a * x_proj + b
 
-            # step 4, algorithm 1, project centers on the line
-            # construct line y_p = a_p*x_p + b_p that contains the point and is orthognonal to y = a*x + b
-            # with a_p = -1/a and b_p = y_p - a_p * x_p we get th point of intersection
-            # x_s = (b_p - b) / (a - a_p) 
-            # y_s = a * x_s + b
-            x_proj = (rboxes_s[:,1] + 1/a * rboxes_s[:,0] - b) / (a + 1/a)
-            y_proj = a * x_proj + b
+                # find the extreme points
+                idx_p = np.argmax(x_proj)
+                idx_q = np.argmin(x_proj)
+                x_p, y_p = x_proj[idx_q], y_proj[idx_q]
+                x_q, y_q = x_proj[idx_p], y_proj[idx_p]
 
-            # find the extreme points
-            max_idx = np.argmax(x_proj)
-            min_idx = np.argmin(x_proj)
-            x_p, y_p = x_proj[min_idx], y_proj[min_idx]
-            x_q, y_q = x_proj[max_idx], y_proj[max_idx]
-
-            # step 5 to 10, algorithm 1, compute the rbox values
-            w_p = rboxes_s[min_idx,2]
-            w_q = rboxes_s[max_idx,2]
-
-            x_b = (x_p + x_q) / 2
-            y_b = (y_p + y_q) / 2
-            w_b = ((x_q - x_p)**2 + (y_q - y_p)**2)**0.5 + (w_p + w_q) / 2
-            h_b = mean(rboxes_s[:,3])
+                # step 5 to 10, algorithm 1, compute the rbox values
+                w_p = rboxes_s[idx_q,2]
+                w_q = rboxes_s[idx_p,2]
+                x_b = (x_p + x_q) / 2
+                y_b = (y_p + y_q) / 2
+                w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5 + (w_p + w_q) / 2
+                h_b = mean(rboxes_s[:,3])
+            else:
+                x_proj = (rboxes_s[:,1] + 1/a * rboxes_s[:,0] - b) / (a + 1/a)
+                
+                idx_p = np.argmax(x_proj)
+                idx_q = np.argmin(x_proj)
+                w_p = rboxes_s[idx_p,2]
+                w_q = rboxes_s[idx_q,2]
+                x_p = rboxes_s[idx_p,0] + np.cos(theta_b) * w_p / 2
+                x_q = rboxes_s[idx_q,0] - np.cos(theta_b) * w_q / 2
+                y_p = a * x_p + b
+                y_q = a * x_q + b
+                
+                x_b = (x_p + x_q) / 2
+                y_b = (y_p + y_q) / 2
+                w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5
+                h_b = mean(rboxes_s[:,3])
             
             rbox_b = [x_b, y_b, w_b, h_b, theta_b]
             
@@ -657,4 +677,4 @@ class PriorUtil(object):
                 plt.text(xy_rec[0,0], xy_rec[0,1], 
                          label_name, rotation=rbox[4]/np.pi*180, 
                          bbox={'facecolor':color, 'alpha':0.5})
-    
+
