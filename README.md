@@ -77,11 +77,11 @@ f-measure         0.869
 
 #### [SegLink with DenseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201806021007_dsodsl512_synthtext.zip)
 trained and tested on subsets of SynthText  
-segment_threshold 0.55  
-link_threshold    0.45  
-precision         0.940  
-recall            0.904  
-f-measure         0.922  
+segment_threshold 0.60  
+link_threshold    0.50  
+precision         0.937  
+recall            0.926  
+f-measure         0.932  
 
 #### [TextBoxes++ with DennseNet and Focal Loss](http://83.169.39.135/ssd_detectors/201807091503_dsodtbpp512fl_synthtext.zip)
 trained and tested on subsets of SynthText  

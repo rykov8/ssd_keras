@@ -53,9 +53,9 @@ def CRNN(input_shape, num_classes, prediction_only=False, gru=True):
         return model_pred
 
     max_string_len = int(y_pred.shape[1])
-
-    # since keras doesn't currently support loss functions with extra parameters
-    # CTC loss in lambda layer and dummy loss in compile call
+    
+    # since keras currently does not support loss functions with extra parameters, 
+    # we put the CTC loss in a lambda layer and call compile with a dummy loss
     def ctc_lambda_func(args):
         labels, y_pred, input_length, label_length = args
         return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
