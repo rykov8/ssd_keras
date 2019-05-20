@@ -216,6 +216,22 @@ class Logger(Callback):
         self.save_history()
 
 
+def filter_signal(x, y, window_length=1000):
+    if type(window_length) is not int or len(y) <= window_length:
+        return [], []
+    
+    #w = np.ones(window_length) # moving average
+    w = np.hanning(window_length) # hanning window
+    
+    wlh = int(window_length/2)
+    if x is None:
+        x = np.arange(wlh, len(y)-wlh+1)
+    else:
+        x = x[wlh:len(y)-wlh+1]
+    y = np.convolve(w/w.sum(), y, mode='valid')
+    return x, y
+
+
 def plot_log(log_dir, names=None, limits=None, window_length=250, log_dir_compare=None):
     
     # TODO: differnet batch sizes lead to different epoch length
@@ -274,30 +290,16 @@ def plot_log(log_dir, names=None, limits=None, window_length=250, log_dir_compar
     else:
         idx_red = idx
     
-    if window_length is not None:
-        #w = np.ones(window_length) # moving average
-        w = np.hanning(window_length) # hanning window
-        wh = int(window_length/2)
-    
     for k in names:
         plt.figure(figsize=(16, 8))
         plt.plot(iteration, d[k], zorder=0)
+        plt.plot(*filter_signal(iteration, d[k], window_length))
         plt.title(k, y=1.05)
-        
-        # filter signal
-        if window_length and len(iteration) > window_length:
-            x = iteration[wh-1:-wh]
-            y = np.convolve(w/w.sum(), d[k], mode='valid')
-            plt.plot(x, y)
         
         # second log
         if log_dir_compare is not None:
             plt.plot(iteration2, d2[k], zorder=0)
-            
-            if window_length and len(iteration2) > window_length:
-                x = iteration2[wh-1:-wh]
-                y = np.convolve(w/w.sum(), d2[k], mode='valid')
-                plt.plot(x, y)
+            plt.plot(*filter_signal(iteration2, d2[k], window_length))
             xmin = min(iteration[0], iteration2[0])
             xmax = max(iteration[-1], iteration2[-1])
         else:
