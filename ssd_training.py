@@ -93,6 +93,7 @@ class SSDLoss(object):
         num_neg = num_total - num_pos
         
         pos_conf_loss = tf.reduce_sum(conf_loss * pos_mask_float)
+        pos_conf_loss = pos_conf_loss / (num_pos + eps)
         
         ## take only false positives for hard negative mining
         #false_pos_mask = tf.logical_and(neg_mask, tf.not_equal(class_pred, 0))
@@ -102,12 +103,13 @@ class SSDLoss(object):
         
         num_neg = tf.minimum(self.neg_pos_ratio * num_pos, num_neg)
         neg_conf_loss = tf.boolean_mask(conf_loss, neg_mask)
+        neg_conf_loss = neg_conf_loss / (num_neg + eps)
         
         vals, idxs = tf.nn.top_k(neg_conf_loss, k=tf.cast(num_neg, tf.int32))
         #neg_conf_loss = tf.reduce_sum(tf.gather(neg_conf_loss, idxs))
         neg_conf_loss = tf.reduce_sum(vals)
         
-        conf_loss = (pos_conf_loss + neg_conf_loss) / (num_pos + num_neg + eps)
+        conf_loss = pos_conf_loss + neg_conf_loss
         
         # offset loss
         loc_true = tf.reshape(y_true[:,:,0:4], [-1, 4])
@@ -115,17 +117,12 @@ class SSDLoss(object):
         
         loc_loss = smooth_l1_loss(loc_true, loc_pred)
         pos_loc_loss = tf.reduce_sum(loc_loss * pos_mask_float) # only for positives
-        
         loc_loss = pos_loc_loss / (num_pos + eps)
         
         # total loss
         total_loss = conf_loss + self.alpha * loc_loss
         
         # metrics
-        pos_conf_loss = pos_conf_loss / (num_pos + eps)
-        neg_conf_loss = neg_conf_loss / (num_neg + eps)
-        pos_loc_loss = pos_loc_loss / (num_pos + eps)
-        
         precision, recall, accuracy, fmeasure = compute_metrics(class_true, class_pred, conf, top_k=100*batch_size)
         
         def make_fcn(t):

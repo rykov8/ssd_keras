@@ -39,7 +39,6 @@ class TBPPFocalLoss(object):
         
         conf_loss = focal_loss(conf_true, conf_pred, alpha=[0.002, 0.998])
         conf_loss = tf.reduce_sum(conf_loss)
-        
         conf_loss = conf_loss / (num_total + eps)
         
         # offset loss, bbox, quadrilaterals, rbbox
@@ -47,9 +46,7 @@ class TBPPFocalLoss(object):
         loc_pred = tf.reshape(y_pred[:,:,0:17], [-1, 17])
         
         loc_loss = smooth_l1_loss(loc_true, loc_pred)
-        #loc_loss = smooth_l1_loss(loc_true[:,:4], loc_pred[:,:4])
         pos_loc_loss = tf.reduce_sum(loc_loss * pos_mask_float) # only for positives
-        
         loc_loss = pos_loc_loss / (num_pos + eps)
         
         # total loss

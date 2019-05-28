@@ -315,89 +315,85 @@ class PriorUtil(object):
         #inter_layer_link_idxs = np.ix_(np.logical_and.reduce(inter_layer_link_mask, axis=1))[0]
         #cross_layer_link_idxs = np.ix_(np.logical_and.reduce(cross_layer_link_mask, axis=1))[0]
         
-        # decode segments
-        offsets = segment_offsets[segment_idxs] # delta(x,y,w,h,theta)_s
-        offsets = np.copy(offsets)
-        offsets[:,:4] *= priors_variances[segment_idxs] # variances
+        results = []
+        
+        if len(segment_idxs) > 0:
+            # decode segments
+            offsets = segment_offsets[segment_idxs] # delta(x,y,w,h,theta)_s
+            offsets = np.copy(offsets)
+            offsets[:,:4] *= priors_variances[segment_idxs] # variances
 
-        rboxes_s = np.empty([len(offsets), 5]) # (x,y,w,h,theta)_s
-        rboxes_s[:,0:2] = priors_wh[segment_idxs] * offsets[:,0:2] + priors_xy[segment_idxs]
-        rboxes_s[:,2:4] = priors_wh[segment_idxs] * np.exp(offsets[:,2:4]) # priors_wh is filled with a_l by default
-        rboxes_s[:,4] = offsets[:,4]
-        rboxes_s_dict = {segment_idxs[i]: rboxes_s[i] for i in range(len(segment_idxs))}
+            rboxes_s = np.empty([len(offsets), 5]) # (x,y,w,h,theta)_s
+            rboxes_s[:,0:2] = priors_wh[segment_idxs] * offsets[:,0:2] + priors_xy[segment_idxs]
+            rboxes_s[:,2:4] = priors_wh[segment_idxs] * np.exp(np.minimum(offsets[:,2:4], 16.)) # priors_wh is filled with a_l by default
+            rboxes_s[:,4] = offsets[:,4]
+            rboxes_s_dict = {segment_idxs[i]: rboxes_s[i] for i in range(len(segment_idxs))}
 
-        nodes = list(segment_idxs)
-        adjacency = {n:set() for n in segment_idxs}
-        for s_idx in segment_idxs:
-            # collect inter layer links
-            for n in np.ix_(inter_layer_link_mask[s_idx])[0]:
-                n_idx = inter_layer_neighbors_idxs[s_idx, n]
-                if n_idx in nodes:
-                    # since we add only links to pos segments, they are also valid
-                    adjacency[s_idx].add(n_idx)
-                    adjacency[n_idx].add(s_idx)
-            # collect cross layer links
-            if s_idx >= first_map_offset:
-                for n in np.ix_(cross_layer_link_mask[s_idx])[0]:
-                    n_idx = cross_layer_neighbors_idxs[s_idx-first_map_offset, n]
+            nodes = list(segment_idxs)
+            adjacency = {n:set() for n in segment_idxs}
+            for s_idx in segment_idxs:
+                # collect inter layer links
+                for n in np.ix_(inter_layer_link_mask[s_idx])[0]:
+                    n_idx = inter_layer_neighbors_idxs[s_idx, n]
                     if n_idx in nodes:
+                        # since we add only links to pos segments, they are also valid
                         adjacency[s_idx].add(n_idx)
                         adjacency[n_idx].add(s_idx)
-        
-        
-        # find connected components
-        ids = {n:None for n in segment_idxs}
-        
-        # recursive 
-        def dfs(node, group_id):
-            if ids[node] == None:
-                ids[node] = group_id
-                for a in adjacency[node]:
-                    dfs(a, group_id)
-        for i in range(len(nodes)):
-            dfs(nodes[i], i)
-        
-        # none-recursive
-        #stack = [*nodes]
-        #while len(stack) > 0:
-        #    node = stack.pop()
-        #    for n in adjacency[node]:
-        #        if ids[n] == None:
-        #            if ids[node] == None:
-        #                ids[n] = node
-        #            else:
-        #                ids[n] = ids[node]
-        #            stack.append(n)
-        
-        
-        groups = {i:[] for i in set(ids.values())}
-        for k, v in ids.items():
-            groups[v].append(k)
-        
-        # combine segments
-        results = []
-        for f, k in enumerate(groups):
-            # decoded segment rboxes in group
-            idxs = np.array(groups[k])
-            rboxes_s = np.array([rboxes_s_dict[i] for i in idxs]) # (x,y,w,h,theta)_s
-            n = len(rboxes_s)
+                # collect cross layer links
+                if s_idx >= first_map_offset:
+                    for n in np.ix_(cross_layer_link_mask[s_idx])[0]:
+                        n_idx = cross_layer_neighbors_idxs[s_idx-first_map_offset, n]
+                        if n_idx in nodes:
+                            adjacency[s_idx].add(n_idx)
+                            adjacency[n_idx].add(s_idx)
             
-            # step 2, algorithm 1
-            #print('rboxes_s[:,4]', rboxes_s[:,4].shape)
-            theta_b = mean(rboxes_s[:,4])
             
-            # step 3, algorithm 1, find minimizing b in y = a*x + b
-            # minimize sum (a*x_i + b - y_i)^2 leads to b = mean(y_i - a*x_i)
-            a = np.tan(-theta_b)
-            a = np.copysign(np.max([np.abs(a), eps]), a) # avoid division by zero
-            b = mean(rboxes_s[:,1] - a * rboxes_s[:,0])
+            # find connected components
+            ids = {n:None for n in segment_idxs}
             
-            # REMARK
-            # set True, if you want the original SegLink decoding as described in the paper
-            # the issue with the original decoding is, that step 6 makes only sense if x_p 
-            # and x_q are on the left and right edge and step 8 makes only sense if x_p and
-            # x_q are on the centers of the rightmost and leftmost segment
-            if False:
+            # recursive 
+            def dfs(node, group_id):
+                if ids[node] == None:
+                    ids[node] = group_id
+                    for a in adjacency[node]:
+                        dfs(a, group_id)
+            for i in range(len(nodes)):
+                dfs(nodes[i], i)
+            
+            # none-recursive
+            #stack = [*nodes]
+            #while len(stack) > 0:
+            #    node = stack.pop()
+            #    for n in adjacency[node]:
+            #        if ids[n] == None:
+            #            if ids[node] == None:
+            #                ids[n] = node
+            #            else:
+            #                ids[n] = ids[node]
+            #            stack.append(n)
+            
+            
+            groups = {i:[] for i in set(ids.values())}
+            for k, v in ids.items():
+                groups[v].append(k)
+            
+            # combine segments
+            for f, k in enumerate(groups):
+                # decoded segment rboxes in group
+                idxs = np.array(groups[k])
+                rboxes_s = np.array([rboxes_s_dict[i] for i in idxs]) # (x,y,w,h,theta)_s
+                n = len(rboxes_s)
+                
+                # step 2, algorithm 1
+                #print('rboxes_s[:,4]', rboxes_s[:,4].shape)
+                theta_b = mean(rboxes_s[:,4])
+                
+                # step 3, algorithm 1, find minimizing b in y = a*x + b
+                # minimize sum (a*x_i + b - y_i)^2 leads to b = mean(y_i - a*x_i)
+                a = np.tan(-theta_b)
+                a = np.copysign(np.max([np.abs(a), eps]), a) # avoid division by zero
+                b = mean(rboxes_s[:,1] - a * rboxes_s[:,0])
+                
                 # step 4, algorithm 1, project centers on the line
                 # construct line y_p = a_p*x_p + b_p that contains the point and is orthognonal to y = a*x + b
                 # with a_p = -1/a and b_p = y_p - a_p * x_p we get th point of intersection
@@ -405,71 +401,75 @@ class PriorUtil(object):
                 # y_s = a * x_s + b
                 x_proj = (rboxes_s[:,1] + 1/a * rboxes_s[:,0] - b) / (a + 1/a)
                 y_proj = a * x_proj + b
-
-                # find the extreme points
-                idx_p = np.argmax(x_proj)
-                idx_q = np.argmin(x_proj)
-                x_p, y_p = x_proj[idx_q], y_proj[idx_q]
-                x_q, y_q = x_proj[idx_p], y_proj[idx_p]
-
-                # step 5 to 10, algorithm 1, compute the rbox values
-                w_p = rboxes_s[idx_q,2]
-                w_q = rboxes_s[idx_p,2]
-                x_b = (x_p + x_q) / 2
-                y_b = (y_p + y_q) / 2
-                w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5 + (w_p + w_q) / 2
-                h_b = mean(rboxes_s[:,3])
-            else:
-                x_proj = (rboxes_s[:,1] + 1/a * rboxes_s[:,0] - b) / (a + 1/a)
                 
-                idx_p = np.argmax(x_proj)
-                idx_q = np.argmin(x_proj)
-                w_p = rboxes_s[idx_p,2]
-                w_q = rboxes_s[idx_q,2]
-                x_p = rboxes_s[idx_p,0] + np.cos(theta_b) * w_p / 2
-                x_q = rboxes_s[idx_q,0] - np.cos(theta_b) * w_q / 2
-                y_p = a * x_p + b
-                y_q = a * x_q + b
+                # REMARK
+                # set True, if you want the original SegLink decoding as described in the paper
+                # the issue with the original decoding is, that step 6 makes only sense if x_p 
+                # and x_q are on the left and right edge and step 8 makes only sense if x_p and
+                # x_q are on the centers of the rightmost and leftmost segment
+                if False:
+                    # find the extreme points
+                    idx_p = np.argmax(x_proj)
+                    idx_q = np.argmin(x_proj)
+                    x_p, y_p = x_proj[idx_q], y_proj[idx_q]
+                    x_q, y_q = x_proj[idx_p], y_proj[idx_p]
+
+                    # step 5 to 10, algorithm 1, compute the rbox values
+                    w_p = rboxes_s[idx_q,2]
+                    w_q = rboxes_s[idx_p,2]
+                    x_b = (x_p + x_q) / 2
+                    y_b = (y_p + y_q) / 2
+                    w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5 + (w_p + w_q) / 2
+                    h_b = mean(rboxes_s[:,3])
+                else:
+                    idx_p = np.argmax(x_proj)
+                    idx_q = np.argmin(x_proj)
+                    w_p = rboxes_s[idx_p,2]
+                    w_q = rboxes_s[idx_q,2]
+                    x_p = rboxes_s[idx_p,0] + np.cos(theta_b) * w_p / 2
+                    x_q = rboxes_s[idx_q,0] - np.cos(theta_b) * w_q / 2
+                    y_p = a * x_p + b
+                    y_q = a * x_q + b
+                    
+                    x_b = (x_p + x_q) / 2
+                    y_b = (y_p + y_q) / 2
+                    w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5
+                    h_b = mean(rboxes_s[:,3])
                 
-                x_b = (x_p + x_q) / 2
-                y_b = (y_p + y_q) / 2
-                w_b = ((x_p - x_q)**2 + (y_p - y_q)**2)**0.5
-                h_b = mean(rboxes_s[:,3])
-            
-            rbox_b = [x_b, y_b, w_b, h_b, theta_b]
-            
-            # confidence
-            confs_s = segment_labels[idxs,1]
-            #conf_b = mean(confs_s)
-            # weighted confidence by area of segments
-            boxes_s_area = rboxes_s[:, 2]*rboxes_s[:, 3]
-            conf_b = np.sum(confs_s * boxes_s_area) / np.sum(boxes_s_area)
-            
-            results.append(rbox_b + [conf_b])
-            
-            # for debugging geometric construction
-            if debug_combining:
-                ax = plt.gca()
-                for rbox in rboxes_s:
-                    c = 'gmbck'
-                    c = c[f%len(c)]
-                    plot_rbox(rbox, color=c, linewidth=1)
-                    # segment centers
-                    plt.plot(rbox[0], rbox[1], 'o'+c, markersize=4)
-                    # projected segment centers
-                    plt.plot(x_proj, y_proj, 'oy', markersize=4)
-                # lines
-                x_l = np.array([0,self.image_w])
-                y_l = a * x_l + b
-                plt.plot(x_l, y_l, 'r')
-                # endpoints
-                plt.plot(x_p, y_p, 'or', markersize=6)
-                plt.plot(x_q, y_q, 'or', markersize=6)
-                # combined box
-                plot_rbox(rbox_b, color='r', linewidth=2)
+                rbox_b = [x_b, y_b, w_b, h_b, theta_b]
+                
+                # confidence
+                confs_s = segment_labels[idxs,1]
+                #conf_b = mean(confs_s)
+                # weighted confidence by area of segments
+                boxes_s_area = rboxes_s[:, 2]*rboxes_s[:, 3]
+                conf_b = np.sum(confs_s * boxes_s_area) / np.sum(boxes_s_area)
+                
+                results.append(rbox_b + [conf_b])
+                
+                # for debugging geometric construction
+                if debug_combining:
+                    ax = plt.gca()
+                    for rbox in rboxes_s:
+                        c = 'gmbck'
+                        c = c[f%len(c)]
+                        plot_rbox(rbox, color=c, linewidth=1)
+                        # segment centers
+                        plt.plot(rbox[0], rbox[1], 'o'+c, markersize=4)
+                        # projected segment centers
+                        plt.plot(x_proj, y_proj, 'oy', markersize=4)
+                    # lines
+                    x_l = np.array([0,self.image_w])
+                    y_l = a * x_l + b
+                    plt.plot(x_l, y_l, 'r')
+                    # endpoints
+                    plt.plot(x_p, y_p, 'or', markersize=6)
+                    plt.plot(x_q, y_q, 'or', markersize=6)
+                    # combined box
+                    plot_rbox(rbox_b, color='r', linewidth=2)
 
         if len(results) > 0:
-            results = np.asarray(results)
+            results = np.asarray(results, dtype='float32')
         else:
             results = np.empty((0,6))
         self.results = results
