@@ -93,5 +93,8 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# outputs
+.output/*
+
 # editor
 .idea
