@@ -1,5 +1,6 @@
 """ A class for testing a SSD model on a video file or webcam """
 
+import os
 import cv2
 import keras
 from keras.applications.imagenet_utils import preprocess_input
@@ -184,7 +185,11 @@ class VideoTest(object):
             cv2.waitKey(10)
             
             print(text)
-            cv2.imwrite("./outputs/" + "frame_" + str('{0:04d}'.format(num_frame)) +".png", to_draw)
+
+            dirname = 'outputs'
+            if not os.path.exists(dirname):
+                os.mkdir(dirname)
+            cv2.imwrite(os.path.join(dirname, "frame_" + str('{0:04d}'.format(num_frame)) +".png"), to_draw)
 
             num_frame += 1
 
