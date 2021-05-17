@@ -94,7 +94,7 @@ ENV/
 .ropeproject
 
 # outputs
-.output/*
+.outputs/*
 
 # editor
 .idea
