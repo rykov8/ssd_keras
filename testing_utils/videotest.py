@@ -83,15 +83,27 @@ class VideoTest(object):
         if not vid.isOpened():
             raise IOError(("Couldn't open video file or webcam. If you're "
             "trying to open a webcam, make sure you video_path is an integer!"))
-        
+
         # Compute aspect ratio of video     
         vidw = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
         vidh = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
         vidar = vidw/vidh
+
+        # Make outputs directory
+        dirname = 'outputs'
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
+
+        # Save outputs as mp4
+        if os.path.exists(os.path.join(dirname, 'out.mp4')):
+            os.remove(os.path.join(dirname, 'out.mp4'))
+        orig_fps = int(vid.get(cv2.CAP_PROP_FPS))
+        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        out_video = cv2.VideoWriter(os.path.join(dirname, 'out.mp4'), fourcc, orig_fps, (int(self.input_shape[0]*vidar), self.input_shape[1]))
         
         # Skip frames until reaching start_frame
         if start_frame > 0:
-            vid.set(cv2.cv.CV_CAP_PROP_POS_MSEC, start_frame)
+            vid.set(cv2.CAP_PROP_POS_MSEC, start_frame)
             
         accum_time = 0
         curr_fps = 0
@@ -103,7 +115,7 @@ class VideoTest(object):
             retval, orig_image = vid.read()
             if not retval:
                 print("Done!")
-                return
+                break
                 
             im_size = (self.input_shape[0], self.input_shape[1])    
             resized = cv2.resize(orig_image, im_size)
@@ -182,14 +194,14 @@ class VideoTest(object):
             cv2.putText(to_draw, fps, (3,10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,0), 1)
             
             cv2.imshow("SSD result", to_draw)
-            cv2.waitKey(10)
-            
-            print(text)
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                break
 
-            dirname = 'outputs'
-            if not os.path.exists(dirname):
-                os.mkdir(dirname)
-            cv2.imwrite(os.path.join(dirname, "frame_" + str('{0:04d}'.format(num_frame)) +".png"), to_draw)
+            # Save output
+            # cv2.imwrite(os.path.join(dirname, "frame_" + str('{0:04d}'.format(num_frame)) +".png"), to_draw)
+            out_video.write(to_draw)
 
             num_frame += 1
 
+        out_video.release()
+        vid.release()

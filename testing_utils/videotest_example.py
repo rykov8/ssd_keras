@@ -21,4 +21,4 @@ vid_test = VideoTest(class_names, model, input_shape)
 
 # To test on webcam 0, remove the parameter (or change it to another number
 # to test on that webcam)
-vid_test.run('./this_is_me.mp4')
+vid_test.run(0)

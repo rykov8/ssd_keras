@@ -8,5 +8,6 @@ Weights are ported from the original models and are available [here](https://meg
 This code was tested with `Keras` v1.2.2, `Tensorflow` v1.0.0, `OpenCV` v3.1.0-dev
 
 ### 参考
+https://qiita.com/yampy/items/37c607fdf77a919cda5d  
 https://qiita.com/PonDad/items/6f9e6d9397951cadc6be  
-https://qiita.com/yampy/items/37c607fdf77a919cda5d
+https://note.nkmk.me/python-opencv-videocapture-file-camera/
