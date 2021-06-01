@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>スクリーンショット 2021-05-22 18.04.00.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/スクリーンショット 2021-05-22 18.04.00.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2180</width>
+		<height>1236</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>997</xmin>
+			<ymin>619</ymin>
+			<xmax>1221</xmax>
+			<ymax>1036</ymax>
+		</bndbox>
+	</object>
+</annotation>

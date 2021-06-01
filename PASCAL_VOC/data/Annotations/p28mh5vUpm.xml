@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>p28mh5vUpm.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/p28mh5vUpm.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>712</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1</xmin>
+			<ymin>2</ymin>
+			<xmax>625</xmax>
+			<ymax>400</ymax>
+		</bndbox>
+	</object>
+</annotation>

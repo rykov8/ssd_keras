@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>2s7sRnsMO8.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/2s7sRnsMO8.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>360</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>127</xmin>
+			<ymin>2</ymin>
+			<xmax>540</xmax>
+			<ymax>356</ymax>
+		</bndbox>
+	</object>
+</annotation>

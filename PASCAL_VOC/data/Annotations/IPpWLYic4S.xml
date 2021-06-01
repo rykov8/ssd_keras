@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>IPpWLYic4S.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/IPpWLYic4S.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>283</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>40</xmin>
+			<ymin>10</ymin>
+			<xmax>235</xmax>
+			<ymax>399</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>Hk8PYbxUkc.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/Hk8PYbxUkc.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>561</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>324</xmin>
+			<ymin>51</ymin>
+			<xmax>460</xmax>
+			<ymax>393</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>rv7jjgKfjO.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/rv7jjgKfjO.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>441</width>
+		<height>259</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>106</xmin>
+			<ymin>1</ymin>
+			<xmax>352</xmax>
+			<ymax>259</ymax>
+		</bndbox>
+	</object>
+</annotation>

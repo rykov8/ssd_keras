@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>4McgbDlM76.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/4McgbDlM76.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>504</width>
+		<height>277</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>168</xmin>
+			<ymin>4</ymin>
+			<xmax>482</xmax>
+			<ymax>277</ymax>
+		</bndbox>
+	</object>
+</annotation>

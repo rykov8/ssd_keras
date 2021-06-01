@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>77U8sakZBp.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/77U8sakZBp.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>355</width>
+		<height>200</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>107</xmin>
+			<ymin>10</ymin>
+			<xmax>286</xmax>
+			<ymax>200</ymax>
+		</bndbox>
+	</object>
+</annotation>

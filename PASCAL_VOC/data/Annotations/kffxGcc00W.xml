@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>kffxGcc00W.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/kffxGcc00W.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>680</width>
+		<height>384</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>346</xmin>
+			<ymin>81</ymin>
+			<xmax>542</xmax>
+			<ymax>384</ymax>
+		</bndbox>
+	</object>
+</annotation>

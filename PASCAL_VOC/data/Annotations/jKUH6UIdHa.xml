@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>jKUH6UIdHa.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/jKUH6UIdHa.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>679</width>
+		<height>382</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>279</xmin>
+			<ymin>31</ymin>
+			<xmax>499</xmax>
+			<ymax>382</ymax>
+		</bndbox>
+	</object>
+</annotation>

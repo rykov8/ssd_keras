@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>XMxLR7X4MC.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/XMxLR7X4MC.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>715</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>352</xmin>
+			<ymin>11</ymin>
+			<xmax>599</xmax>
+			<ymax>400</ymax>
+		</bndbox>
+	</object>
+</annotation>

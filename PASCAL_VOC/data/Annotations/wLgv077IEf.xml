@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>wLgv077IEf.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/wLgv077IEf.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>540</width>
+		<height>301</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>63</xmin>
+			<ymin>1</ymin>
+			<xmax>470</xmax>
+			<ymax>301</ymax>
+		</bndbox>
+	</object>
+</annotation>

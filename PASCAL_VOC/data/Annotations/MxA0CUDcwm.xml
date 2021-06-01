@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>MxA0CUDcwm.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/MxA0CUDcwm.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>711</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>290</xmin>
+			<ymin>39</ymin>
+			<xmax>568</xmax>
+			<ymax>400</ymax>
+		</bndbox>
+	</object>
+</annotation>

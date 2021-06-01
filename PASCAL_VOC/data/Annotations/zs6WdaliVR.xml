@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>zs6WdaliVR.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/zs6WdaliVR.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>711</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>58</xmin>
+			<ymin>4</ymin>
+			<xmax>482</xmax>
+			<ymax>400</ymax>
+		</bndbox>
+	</object>
+</annotation>

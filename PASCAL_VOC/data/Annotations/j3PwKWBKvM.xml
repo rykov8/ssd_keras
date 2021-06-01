@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>j3PwKWBKvM.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/j3PwKWBKvM.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>284</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>42</xmin>
+			<ymin>74</ymin>
+			<xmax>162</xmax>
+			<ymax>400</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>LSE1rIQqki.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/LSE1rIQqki.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>710</width>
+		<height>400</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>250</xmin>
+			<ymin>13</ymin>
+			<xmax>461</xmax>
+			<ymax>399</ymax>
+		</bndbox>
+	</object>
+</annotation>

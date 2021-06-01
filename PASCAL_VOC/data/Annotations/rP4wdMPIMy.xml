@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>rP4wdMPIMy.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/rP4wdMPIMy.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>540</width>
+		<height>299</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>112</xmin>
+			<ymin>1</ymin>
+			<xmax>437</xmax>
+			<ymax>299</ymax>
+		</bndbox>
+	</object>
+</annotation>

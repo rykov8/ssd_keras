@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>Bfy6xodgcd.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/Bfy6xodgcd.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>540</width>
+		<height>300</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>177</xmin>
+			<ymin>24</ymin>
+			<xmax>387</xmax>
+			<ymax>300</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>iTHSRHlPBC.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/iTHSRHlPBC.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>600</width>
+		<height>337</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>69</xmin>
+			<ymin>1</ymin>
+			<xmax>598</xmax>
+			<ymax>337</ymax>
+		</bndbox>
+	</object>
+</annotation>

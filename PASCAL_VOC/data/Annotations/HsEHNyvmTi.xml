@@ -1,0 +1,26 @@
+<annotation>
+	<folder>rem</folder>
+	<filename>HsEHNyvmTi.png</filename>
+	<path>/Users/yusei.yagi/lab/datasets/rem/HsEHNyvmTi.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>110</width>
+		<height>140</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>rem</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>9</xmin>
+			<ymin>7</ymin>
+			<xmax>89</xmax>
+			<ymax>140</ymax>
+		</bndbox>
+	</object>
+</annotation>
