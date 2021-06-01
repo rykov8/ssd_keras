@@ -6,7 +6,7 @@ class XML_preprocessor(object):
 
     def __init__(self, data_path):
         self.path_prefix = data_path
-        self.num_classes = 20
+        self.num_classes = 1
         self.data = dict()
         self._preprocess_XML()
 
@@ -37,55 +37,16 @@ class XML_preprocessor(object):
             image_data = np.hstack((bounding_boxes, one_hot_classes))
             self.data[image_name] = image_data
 
-    def _to_one_hot(self,name):
+    def _to_one_hot(self, name):
         one_hot_vector = [0] * self.num_classes
-        if name == 'aeroplane':
+        if name == 'rem':
             one_hot_vector[0] = 1
-        elif name == 'bicycle':
-            one_hot_vector[1] = 1
-        elif name == 'bird':
-            one_hot_vector[2] = 1
-        elif name == 'boat':
-            one_hot_vector[3] = 1
-        elif name == 'bottle':
-            one_hot_vector[4] = 1
-        elif name == 'bus':
-            one_hot_vector[5] = 1
-        elif name == 'car':
-            one_hot_vector[6] = 1
-        elif name == 'cat':
-            one_hot_vector[7] = 1
-        elif name == 'chair':
-            one_hot_vector[8] = 1
-        elif name == 'cow':
-            one_hot_vector[9] = 1
-        elif name == 'diningtable':
-            one_hot_vector[10] = 1
-        elif name == 'dog':
-            one_hot_vector[11] = 1
-        elif name == 'horse':
-            one_hot_vector[12] = 1
-        elif name == 'motorbike':
-            one_hot_vector[13] = 1
-        elif name == 'person':
-            one_hot_vector[14] = 1
-        elif name == 'pottedplant':
-            one_hot_vector[15] = 1
-        elif name == 'sheep':
-            one_hot_vector[16] = 1
-        elif name == 'sofa':
-            one_hot_vector[17] = 1
-        elif name == 'train':
-            one_hot_vector[18] = 1
-        elif name == 'tvmonitor':
-            one_hot_vector[19] = 1
         else:
             print('unknown label: %s' %name)
 
         return one_hot_vector
 
-## example on how to use it
-# import pickle
-# data = XML_preprocessor('VOC2007/Annotations/').data
-# pickle.dump(data,open('VOC2007.p','wb'))
-
+# example on how to use it
+import pickle
+data = XML_preprocessor('data/Annotations/').data
+pickle.dump(data, open('supervised_data.pkl', 'wb'))

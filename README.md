@@ -10,4 +10,5 @@ This code was tested with `Keras` v1.2.2, `Tensorflow` v1.0.0, `OpenCV` v3.1.0-d
 ### 参考
 https://qiita.com/yampy/items/37c607fdf77a919cda5d  
 https://qiita.com/PonDad/items/6f9e6d9397951cadc6be  
-https://note.nkmk.me/python-opencv-videocapture-file-camera/
+https://note.nkmk.me/python-opencv-videocapture-file-camera/　　
+https://karaage.hatenadiary.jp/entry/2018/06/04/070000
